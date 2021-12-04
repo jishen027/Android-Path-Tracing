@@ -1,4 +1,4 @@
-package com.example.androiddevproj
+package com.triptracker.activities
 
 import org.junit.Test
 
