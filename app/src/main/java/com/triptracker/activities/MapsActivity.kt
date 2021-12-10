@@ -2,9 +2,13 @@ package com.triptracker.activities
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
 import android.location.Location
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -24,10 +28,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.Marker
-import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.*
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
@@ -83,6 +84,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
 
 
+        // Activities for buttons =============================================================
+
         class ykTimer() : TimerTask() {
             override fun run() {
                 addMarkerPoint()
@@ -101,8 +104,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val stopRecordBtn = findViewById<MaterialButton>(R.id.stop_record)
         stopRecordBtn.addOnCheckedChangeListener{checkedId, isChecked ->
-            yk.cancel()
-            yk = ykTimer()
+//            yk.cancel()
+//            yk = ykTimer()
+            addImageMarker()
         }
 
         findViewById<Button>(R.id.gallery_btn).setOnClickListener(View.OnClickListener {
@@ -142,6 +146,35 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             Log.e("Exception: %s", e.message, e)
         }
     }
+
+
+    private fun addImageMarker(){
+        try {
+            if (locationPermissionGranted) {
+                val locationResult = fusedLocationProviderClient.lastLocation
+                locationResult.addOnCompleteListener(this) { task ->
+                    if (task.isSuccessful) {
+                        // Set the map's camera position to the current location of the device.
+                        lastKnownLocation = task.result
+                        if (lastKnownLocation != null) {
+                            val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
+                            val bitmap = BitmapFactory.decodeResource(resources, R.drawable.jetpack)
+                            mMap?.addMarker(
+                                MarkerOptions()
+                                    .position(markerPosition)
+                                    .icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(
+                                        android.graphics.Bitmap.createScaledBitmap(bitmap, 200, 200, false)))
+
+                            )
+                        }
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e("Exception: %s", e.message, e)
+        }
+    }
+    //end of  activities for buttons =============================================================
 
 
 
