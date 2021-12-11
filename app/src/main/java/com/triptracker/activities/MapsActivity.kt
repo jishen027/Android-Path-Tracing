@@ -25,6 +25,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 
@@ -42,7 +43,7 @@ import com.triptracker.R
 import com.triptracker.databinding.ActivityMapsBinding
 import java.util.*
 
-class MapsActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListener {
+class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
@@ -67,16 +68,24 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
 
     // sensor
-    private lateinit var sensorManager: SensorManager
-    private var pressure: Sensor? = null
-    private var currentPressureValue: Float? = null
+    private var sensorViewModel: SensorViewModel? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        pressure = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
+        this.sensorViewModel = ViewModelProvider(this)[SensorViewModel::class.java]
+
+        this.sensorViewModel!!.retrievePressureData()!!.observe(this,
+            //  create observer, whenever the value is changed this func will be called
+            { newValue ->
+                newValue?.also{
+                    // Uncomment line below to display the pressure data in the log
+                    // You may choose to change this to display the data in the view - a simple view has already been provided for this
+                    Log.i("Data in UI - Pressure", it.toString())
+                }
+            })
+
 
         if (savedInstanceState != null) {
             lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
@@ -111,8 +120,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
 //       取消定时器 ： yk.cancel()
 
-            Timer().schedule(yk, Date(), 5000)
-
+//            Timer().schedule(yk, Date(), 5000)
+            this.sensorViewModel?.startSensing()
         }
 
         val stopRecordBtn = findViewById<MaterialButton>(R.id.stop_record)
@@ -120,7 +129,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 //            yk.cancel()
 //            yk = ykTimer()
 //            addImageMarker()
-            println(currentPressureValue)
+
+            this.sensorViewModel?.stopSensing()
 
 
         }
@@ -437,29 +447,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
             outState.putParcelable(KEY_LOCATION, lastKnownLocation)
         }
         super.onSaveInstanceState(outState)
-    }
-
-
-    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
-        // Do something here if sensor accuracy changes.
-    }
-
-    override fun onSensorChanged(event: SensorEvent) {
-        val millibarsOfPressure = event.values[0]
-        currentPressureValue = millibarsOfPressure
-        // Do something with this sensor data.
-    }
-
-    override fun onResume() {
-        // Register a listener for the sensor.
-        super.onResume()
-        sensorManager.registerListener(this, pressure, SensorManager.SENSOR_DELAY_NORMAL)
-    }
-
-    override fun onPause() {
-        // Be sure to unregister the sensor when the activity pauses.
-        super.onPause()
-        sensorManager.unregisterListener(this)
     }
 
 
