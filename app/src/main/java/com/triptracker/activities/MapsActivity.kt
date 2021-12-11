@@ -9,6 +9,10 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -38,7 +42,7 @@ import com.triptracker.R
 import com.triptracker.databinding.ActivityMapsBinding
 import java.util.*
 
-class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
+class MapsActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListener {
 
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
@@ -62,8 +66,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var cameraPosition: CameraPosition? = null
 
 
+    // sensor
+    private lateinit var sensorManager: SensorManager
+    private var pressure: Sensor? = null
+    private var currentPressureValue: Float? = null
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        pressure = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
 
         if (savedInstanceState != null) {
             lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
@@ -106,7 +119,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         stopRecordBtn.addOnCheckedChangeListener{checkedId, isChecked ->
 //            yk.cancel()
 //            yk = ykTimer()
-            addImageMarker()
+//            addImageMarker()
+            println(currentPressureValue)
+
+
         }
 
         findViewById<Button>(R.id.gallery_btn).setOnClickListener(View.OnClickListener {
@@ -114,6 +130,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             this.startActivity(intent)
         })
 
+
+        //end of  activities for buttons =============================================================
+
+        // Sensor activities
 
 
     }
@@ -174,7 +194,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             Log.e("Exception: %s", e.message, e)
         }
     }
-    //end of  activities for buttons =============================================================
 
 
 
@@ -421,6 +440,27 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
+    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+        // Do something here if sensor accuracy changes.
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        val millibarsOfPressure = event.values[0]
+        currentPressureValue = millibarsOfPressure
+        // Do something with this sensor data.
+    }
+
+    override fun onResume() {
+        // Register a listener for the sensor.
+        super.onResume()
+        sensorManager.registerListener(this, pressure, SensorManager.SENSOR_DELAY_NORMAL)
+    }
+
+    override fun onPause() {
+        // Be sure to unregister the sensor when the activity pauses.
+        super.onPause()
+        sensorManager.unregisterListener(this)
+    }
 
 
 
@@ -436,5 +476,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         // Used for selecting the current place.
         private const val M_MAX_ENTRIES = 5
     }
+
+
 
 }
