@@ -86,6 +86,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             })
 
+        this.sensorViewModel!!.retrieveTemperatureData()!!.observe(this,
+            { newValue ->
+                    newValue?.also {
+                        println("Temperature exist")
+                        Log.i("Data in UI - Temp", it.toString())
+                    }
+            }
+            )
+
 
         if (savedInstanceState != null) {
             lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
