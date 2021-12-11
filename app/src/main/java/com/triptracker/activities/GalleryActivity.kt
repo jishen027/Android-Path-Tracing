@@ -97,7 +97,7 @@ class GalleryActivity : AppCompatActivity() {
 
     private fun initData() {
         GlobalScope.launch {
-            daoObj = (this@GalleryActivity.application as ImageApplication)
+            daoObj = (this@GalleryActivity.application as TripTracker)
                 .databaseObj.imageDataDao()
             myDataset.addAll(daoObj.getItems())
         }

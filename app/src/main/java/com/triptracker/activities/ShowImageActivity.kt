@@ -40,7 +40,7 @@ class ShowImageActivity : AppCompatActivity() {
         val bundle: Bundle? = intent.extras
         var position = -1
 
-        daoObj = (this@ShowImageActivity.application as ImageApplication)
+        daoObj = (this@ShowImageActivity.application as TripTracker)
             .databaseObj.imageDataDao()
 
         if (bundle != null) {

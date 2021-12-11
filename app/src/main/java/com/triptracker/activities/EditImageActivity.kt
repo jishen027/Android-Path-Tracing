@@ -22,7 +22,7 @@ class EditImageActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_edit)
 
-        daoObj = (this@EditImageActivity.application as ImageApplication)
+        daoObj = (this@EditImageActivity.application as TripTracker)
             .databaseObj.imageDataDao()
         val bundle: Bundle? = intent.extras
         var position = -1
