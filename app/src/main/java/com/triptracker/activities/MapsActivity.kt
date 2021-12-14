@@ -39,6 +39,7 @@ import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.triptracker.R
 import com.triptracker.databinding.ActivityMapsBinding
 import java.util.*
@@ -66,7 +67,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private var cameraPosition: CameraPosition? = null
 
-
+    private var buttonState = true
     // sensor
     private var sensorViewModel: SensorViewModel? = null
 
@@ -124,24 +125,20 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         var yk = ykTimer()
 
-        val startRecordBtn = findViewById<MaterialButton>(R.id.start_record)
-        startRecordBtn.addOnCheckedChangeListener{checkedId, isChecked ->
+        val startRecordBtn = findViewById<Button>(R.id.start_record)
+        startRecordBtn.setOnClickListener(){
 
-//       取消定时器 ： yk.cancel()
-
-//            Timer().schedule(yk, Date(), 5000)
-            this.sensorViewModel?.startSensing()
-        }
-
-        val stopRecordBtn = findViewById<MaterialButton>(R.id.stop_record)
-        stopRecordBtn.addOnCheckedChangeListener{checkedId, isChecked ->
-//            yk.cancel()
-//            yk = ykTimer()
-//            addImageMarker()
-
-            this.sensorViewModel?.stopSensing()
-
-
+            if(buttonState) {
+                Timer().schedule(yk, Date(), 5000)
+                setAddPhotoVisible()
+                startRecordBtn.text = "Stop"
+            } else {
+                yk.cancel()
+                yk = ykTimer()
+                setAddPhotoVisible()
+                startRecordBtn.text = "Start"
+            }
+            buttonState = !buttonState
         }
 
         findViewById<Button>(R.id.gallery_btn).setOnClickListener(View.OnClickListener {
@@ -149,11 +146,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             this.startActivity(intent)
         })
 
+        findViewById<FloatingActionButton>(R.id.addPhotoFab).setOnClickListener(View.OnClickListener {
+
+        })
+
 
         //end of  activities for buttons =============================================================
 
         // Sensor activities
-
 
     }
 
@@ -349,6 +349,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             showCurrentPlace()
         }
         return true
+    }
+
+    private fun setAddPhotoVisible() {
+        if (findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility == View.VISIBLE) {
+            findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility = View.INVISIBLE
+        } else {
+            findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility = View.VISIBLE
+        }
     }
 
     @SuppressLint("MissingPermission")
