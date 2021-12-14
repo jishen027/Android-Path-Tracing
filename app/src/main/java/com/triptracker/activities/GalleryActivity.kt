@@ -63,7 +63,7 @@ class GalleryActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_gallery)
-        val toolbar: androidx.appcompat.widget.Toolbar = findViewById(R.id.toolbar)
+        //val toolbar: androidx.appcompat.widget.Toolbar = findViewById(R.id.toolbar)
 
         initData()
         // Log.d("TAG", "message")
@@ -185,7 +185,7 @@ class GalleryActivity : AppCompatActivity() {
                 ActivityCompat.requestPermissions(
                     this,
                     arrayOf(Manifest.permission.CAMERA),
-                    REQUEST_CAMERA_CODE);
+                    REQUEST_CAMERA_CODE)
             }
         }
     }
