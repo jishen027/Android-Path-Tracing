@@ -25,25 +25,30 @@
             android:layout_height="67dp"
             android:layout_centerHorizontal="true"
             android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="64dp"
+            android:layout_marginBottom="128dp"
             android:clickable="true"
             android:src="@drawable/ic_add_a_photo_black_24dp"
             android:visibility="invisible" />
 
         <Button
             android:id="@+id/start_record"
-            android:layout_gravity="bottom"
-            android:layout_margin="24dp"
             android:layout_width="128dp"
             android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="64dp"
+            android:src="@drawable/ic_add_a_photo_black_24dp"
             android:text="Start" />
 
-        <Button
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/gallery_btn"
             android:layout_gravity="bottom|right"
             android:layout_margin="24dp"
-            android:layout_width="128dp"
-            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:layout_height="67dp"
+            android:layout_centerHorizontal="true"
+            android:layout_marginBottom="128dp"
+            android:clickable="true"
+            android:src="@drawable/ic_baseline_image_24"
             android:text="Gallery" />
 
 

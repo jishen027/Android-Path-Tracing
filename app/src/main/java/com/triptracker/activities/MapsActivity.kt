@@ -28,7 +28,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -96,7 +95,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             }
             )
 
-
         if (savedInstanceState != null) {
             lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
             cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION)
@@ -141,7 +139,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             buttonState = !buttonState
         }
 
-        findViewById<Button>(R.id.gallery_btn).setOnClickListener(View.OnClickListener {
+        findViewById<FloatingActionButton>(R.id.gallery_btn).setOnClickListener(View.OnClickListener {
             val intent = Intent(this, GalleryActivity::class.java)
             this.startActivity(intent)
         })
@@ -465,8 +463,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         super.onSaveInstanceState(outState)
     }
-
-
 
     companion object {
         private val TAG = MapsActivity::class.java.simpleName

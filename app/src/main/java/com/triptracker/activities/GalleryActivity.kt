@@ -74,6 +74,11 @@ class GalleryActivity : AppCompatActivity() {
         mAdapter = GalleryAdapter(myDataset) as RecyclerView.Adapter<RecyclerView.ViewHolder>
         mRecyclerView.adapter = mAdapter
 
+        findViewById<FloatingActionButton>(R.id.fab_home).setOnClickListener(View.OnClickListener {
+            val intent = Intent(this, MapsActivity::class.java)
+            this.startActivity(intent)
+        })
+
         // required by Android 6.0 +
         checkPermissions(applicationContext)
         initEasyImage()
