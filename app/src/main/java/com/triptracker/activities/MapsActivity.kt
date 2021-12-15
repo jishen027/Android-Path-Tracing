@@ -77,6 +77,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
 
 
+
+
     // sensor
     private var sensorViewModel: SensorViewModel? = null
 
@@ -89,6 +91,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+
+
+        // Sensor activities
         this.sensorViewModel = ViewModelProvider(this)[SensorViewModel::class.java]
 
         this.sensorViewModel!!.retrievePressureData()!!.observe(this,
@@ -131,6 +136,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Activities for buttons =============================================================
 
+        /**
+         * tkTimer is for set a regular intervals(5 seconds) to track user's location temperature and pressure.
+         *
+         * */
         class ykTimer() : TimerTask() {
             override fun run() {
                 addMarkerPoint()
@@ -138,9 +147,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         var yk = ykTimer()
 
+
+
         val startRecordBtn = findViewById<Button>(R.id.start_record)
         startRecordBtn.setOnClickListener(){
-
             if(buttonState) {
                 Timer().schedule(yk, Date(), 5000)
                 setAddPhotoVisible()
@@ -166,11 +176,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         //end of  activities for buttons =============================================================
 
-        // Sensor activities
+
 
     }
 
-
+    /**
+     * addmarkerPoint() will get user's current position(latitude and longitude) and put a marker on the map
+     *
+     * */
     private fun addMarkerPoint(){
         try {
             if (locationPermissionGranted) {
@@ -199,7 +212,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-
+    /**
+     * addmarkerPoint() will get user's current position(latitude and longitude) and put a image marker on the map
+     *
+     */
     private fun addImageMarker(){
         try {
             if (locationPermissionGranted) {
