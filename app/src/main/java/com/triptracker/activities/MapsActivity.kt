@@ -41,7 +41,10 @@ import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.triptracker.R
+import com.triptracker.data.ImageData
+import com.triptracker.data.ImageDataDao
 import com.triptracker.databinding.ActivityMapsBinding
+import pl.aprilapps.easyphotopicker.EasyImage
 import java.util.*
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -68,8 +71,20 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var cameraPosition: CameraPosition? = null
 
     private var buttonState = true
+
+    //marker and polyline
+    var points = mutableListOf<LatLng>();
+
+
+
+
     // sensor
     private var sensorViewModel: SensorViewModel? = null
+
+    //dao
+    private var myDataset: MutableList<ImageData> = ArrayList<ImageData>()
+    private lateinit var daoObj: ImageDataDao
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,7 +108,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                         println("Temperature exist")
                         Log.i("Data in UI - Temp", it.toString())
                     }
-            }
+                }
             )
 
 
@@ -157,6 +172,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
+
     private fun addMarkerPoint(){
         try {
             if (locationPermissionGranted) {
@@ -171,10 +187,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                                 MarkerOptions()
                                     .position(markerPosition)
                             )
-
-//                                mMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(
-//                                    LatLng(lastKnownLocation!!.latitude,
-//                                        lastKnownLocation!!.longitude), DEFAULT_ZOOM.toFloat()))
+                            points.add(markerPosition)
+                            val polylineOptions = PolylineOptions().addAll(points)
+                            val polyline = mMap.addPolyline(polylineOptions)
                         }
                     } else {
 
