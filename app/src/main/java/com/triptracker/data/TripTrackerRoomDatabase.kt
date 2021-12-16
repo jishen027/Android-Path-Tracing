@@ -4,14 +4,19 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 
 /**
  * Database class with a singleton INSTANCE object.
  */
-@Database(entities = [ImageData::class], version = 2, exportSchema = false)
+@Database(entities = [ImageData::class, PositionData::class, RouteData::class], version = 2, exportSchema = false)
+@TypeConverters(Converters::class)
 abstract class TripTrackerRoomDatabase: RoomDatabase() {
 
     abstract fun imageDataDao(): ImageDataDao
+    abstract fun routeDataDao(): RouteDataDao
+    abstract fun positionData(): PositionData
+
 
     companion object{
         @Volatile
