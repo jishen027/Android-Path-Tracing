@@ -51,6 +51,9 @@
         <activity
             android:name="com.triptracker.activities.ShowImageActivity"
             android:exported="true" />
+        <activity
+            android:name="com.triptracker.activities.EditImageActivity"
+            android:exported="true" />
     </application>
 
 </manifest>

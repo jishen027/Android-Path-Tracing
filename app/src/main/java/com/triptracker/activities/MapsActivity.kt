@@ -2,6 +2,7 @@ package com.triptracker.activities
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
@@ -20,6 +21,7 @@ import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -39,10 +41,14 @@ import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.textfield.TextInputEditText
 import com.triptracker.R
-import com.triptracker.data.ImageData
-import com.triptracker.data.ImageDataDao
+import com.triptracker.data.*
 import com.triptracker.databinding.ActivityMapsBinding
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import pl.aprilapps.easyphotopicker.EasyImage
 import java.util.*
 
@@ -51,6 +57,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
     private lateinit var placesClient: PlacesClient
+    private lateinit var startRouteDialog: Dialog
+    private lateinit var startRecordBtn: Button;
+    private lateinit var yk: TimerTask;
 
     // The entry point to the Fused Location Provider.
     private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
@@ -70,21 +79,19 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var cameraPosition: CameraPosition? = null
 
     private var buttonState = true
+    private var currentRouteId: Int = -1;
+    private var currentPressure: Float = 0f;
+    private var currentTemperature: Float = 0f;
 
     //marker and polyline
     var points = mutableListOf<LatLng>();
-
-
-
-
-
 
     // sensor
     private var sensorViewModel: SensorViewModel? = null
 
     //dao
-    private var myDataset: MutableList<ImageData> = ArrayList<ImageData>()
-    private lateinit var daoObj: ImageDataDao
+    private lateinit var positionDao: PositionDataDao
+    private lateinit var routeDao: RouteDataDao
 
 
 
@@ -100,17 +107,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             //  create observer, whenever the value is changed this func will be called
             { newValue ->
                 newValue?.also{
-                    // Uncomment line below to display the pressure data in the log
-                    // You may choose to change this to display the data in the view - a simple view has already been provided for this
-                    Log.i("Data in UI - Pressure", it.toString())
+                   Log.i("Data in UI - Pressure", it.toString())
+                    currentPressure = it;
                 }
             })
 
         this.sensorViewModel!!.retrieveTemperatureData()!!.observe(this,
             { newValue ->
                     newValue?.also {
-                        println("Temperature exist")
                         Log.i("Data in UI - Temp", it.toString())
+                        currentTemperature = it;
                     }
                 }
             )
@@ -145,16 +151,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 addMarkerPoint()
             }
         }
-        var yk = ykTimer()
+        yk = ykTimer()
 
 
 
-        val startRecordBtn = findViewById<Button>(R.id.start_record)
+        startRecordBtn = findViewById<Button>(R.id.start_record)
         startRecordBtn.setOnClickListener(){
             if(buttonState) {
-                Timer().schedule(yk, Date(), 5000)
-                setAddPhotoVisible()
-                startRecordBtn.text = "Stop"
+                yk = ykTimer()
+                openStartRouteDialog()
             } else {
                 yk.cancel()
                 yk = ykTimer()
@@ -173,11 +178,71 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         })
 
+        initData();
 
         //end of  activities for buttons =============================================================
+    }
 
+    private fun openStartRouteDialog() {
+        startRouteDialog = Dialog(this)
+        startRouteDialog.setContentView(R.layout.new_route_popup)
+        val cancelBtn = startRouteDialog.findViewById<Button>(R.id.cancel_routing_btn)
+        val startBtn = startRouteDialog.findViewById<Button>(R.id.start_routing_btn)
+        val routeTitle = startRouteDialog.findViewById<EditText>(R.id.route_title_field)
+        val routeDesc = startRouteDialog.findViewById<EditText>(R.id.route_title_desc)
 
+        startBtn.setOnClickListener {
+            Timer().schedule(yk, Date(), 5000)
+            setAddPhotoVisible()
+            startRecordBtn.text = "Stop"
+            createNewRoute(routeTitle.text.toString(), routeDesc.text.toString())
+            startRouteDialog.dismiss()
+            checkData()
+        }
+        cancelBtn.setOnClickListener {
+            startRouteDialog.dismiss()
+        }
+        startRouteDialog.show()
+    }
 
+    private fun initData() {
+        GlobalScope.launch {
+            routeDao = (this@MapsActivity.application as TripTracker)
+                .databaseObj.routeDataDao()
+            positionDao = (this@MapsActivity.application as TripTracker)
+                .databaseObj.positionData()
+        }
+    }
+
+    private fun checkData() = runBlocking {
+        var routes: List<RouteData> = routeDao.getItems();
+        Log.i("positions", routes.toString())
+    }
+
+    private fun createNewRoute(title: String, desc: String) {
+        Log.i("new route", title)
+        Log.i("new route", desc)
+        var routeData = RouteData(title=title, description=desc)
+        var id = insertRoute(routeData)
+        currentRouteId = id
+    }
+
+    private fun insertRoute(routeDate: RouteData): Int = runBlocking {
+        var insertJob = async { routeDao.insert(routeDate) }
+        insertJob.await().toInt()
+    }
+
+    private fun createNewPosition(lat: Double, lng: Double) {
+        var positionData = PositionData(routeId=currentRouteId, lat = lat, lng= lng, date= Date(),
+            pressure = currentPressure, temperature = currentTemperature)
+        insertPosition(positionData)
+        Log.i("positions", currentPressure.toString())
+        Log.i("positions", currentTemperature.toString())
+    }
+
+    private fun insertPosition(positionData: PositionData): Int = runBlocking {
+        var insertJob = async { positionDao.insert(positionData) }
+        insertJob.await().toInt()
     }
 
     /**
@@ -199,8 +264,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                                     .position(markerPosition)
                             )
                             points.add(markerPosition)
+                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
                             val polylineOptions = PolylineOptions().addAll(points)
                             val polyline = mMap.addPolyline(polylineOptions)
+
                         }
                     } else {
 
