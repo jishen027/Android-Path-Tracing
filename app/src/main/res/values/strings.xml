@@ -26,5 +26,7 @@
     <string name="new_route_desc">Route description</string>
     <string name="start_routing">Start routing</string>
     <string name="cancel">Cancel</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
 
 </resources>

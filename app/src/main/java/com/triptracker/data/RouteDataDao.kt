@@ -9,7 +9,7 @@ import androidx.room.Update
 
 @Dao
 interface RouteDataDao {
-    @Query("SELECT * from route ORDER by id ASC")
+    @Query("SELECT * from route ORDER by date DESC")
     suspend fun getItems(): List<RouteData>
 
     @Query("SELECT * from route WHERE id = :id")

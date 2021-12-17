@@ -164,13 +164,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 yk.cancel()
                 yk = ykTimer()
                 setAddPhotoVisible()
-                startRecordBtn.text = "Start"
+                startRecordBtn.text = resources.getString(R.string.start);
             }
             buttonState = !buttonState
         }
 
         findViewById<FloatingActionButton>(R.id.gallery_btn).setOnClickListener(View.OnClickListener {
             val intent = Intent(this, GalleryActivity::class.java)
+            this.startActivity(intent)
+        })
+
+        findViewById<FloatingActionButton>(R.id.routes_btn).setOnClickListener(View.OnClickListener {
+            val intent = Intent(this, RoutesActivity::class.java)
             this.startActivity(intent)
         })
 
@@ -194,7 +199,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         startBtn.setOnClickListener {
             Timer().schedule(yk, Date(), 5000)
             setAddPhotoVisible()
-            startRecordBtn.text = "Stop"
+            startRecordBtn.text = resources.getString(R.string.stop)
             createNewRoute(routeTitle.text.toString(), routeDesc.text.toString())
             startRouteDialog.dismiss()
             checkData()
@@ -222,7 +227,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun createNewRoute(title: String, desc: String) {
         Log.i("new route", title)
         Log.i("new route", desc)
-        var routeData = RouteData(title=title, description=desc)
+        var routeData = RouteData(title=title, description=desc, date = Date())
         var id = insertRoute(routeData)
         currentRouteId = id
     }
