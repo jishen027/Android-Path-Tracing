@@ -16,8 +16,7 @@
             android:id="@+id/map"
             android:name="com.google.android.gms.maps.SupportMapFragment"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            tools:context=".MapsActivity" />
+            android:layout_height="match_parent" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/addPhotoFab"
@@ -25,7 +24,7 @@
             android:layout_height="67dp"
             android:layout_centerHorizontal="true"
             android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="128dp"
+            android:layout_marginBottom="95dp"
             android:clickable="true"
             android:src="@drawable/ic_add_a_photo_black_24dp"
             android:visibility="invisible" />
@@ -35,7 +34,7 @@
             android:layout_width="128dp"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="64dp"
+            android:layout_marginBottom="28dp"
             android:src="@drawable/ic_add_a_photo_black_24dp"
             android:text="Start" />
 
@@ -49,6 +48,18 @@
             android:layout_marginBottom="128dp"
             android:clickable="true"
             android:src="@drawable/ic_baseline_image_24"
+            android:text="Gallery" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/routes_btn"
+            android:layout_gravity="bottom|left"
+            android:layout_margin="24dp"
+            android:layout_width="wrap_content"
+            android:layout_height="67dp"
+            android:layout_centerHorizontal="true"
+            android:layout_marginBottom="128dp"
+            android:clickable="true"
+            android:src="@drawable/ic_baseline_map_24"
             android:text="Gallery" />
 
 

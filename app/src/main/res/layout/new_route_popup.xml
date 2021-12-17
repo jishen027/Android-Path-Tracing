@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="250dp"
+    android:layout_height="250dp"
+    android:layout_gravity="center"
+    android:padding="20dp">
+
+    <EditText
+        android:id="@+id/route_title_field"
+        android:layout_width="match_parent"
+        android:hint="@string/new_route_name"
+        android:layout_height="48dp"
+        android:layout_marginBottom="10dp" />
+
+    <EditText
+        android:id="@+id/route_title_desc"
+        android:layout_width="match_parent"
+        android:hint="@string/new_route_desc"
+        android:lines="3"
+        android:layout_height="48dp"
+        android:layout_marginBottom="10dp" />
+
+    <Button
+        android:id="@+id/start_routing_btn"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="@string/start_routing"
+        android:layout_marginBottom="10dp" />
+
+    <Button
+        android:id="@+id/cancel_routing_btn"
+        android:layout_width="100dp"
+        android:layout_height="35dp"
+        android:layout_gravity="center"
+        android:text="@string/cancel"
+        android:textColor="@color/black"
+        style="?android:attr/borderlessButtonStyle" />
+
+
+</LinearLayout>

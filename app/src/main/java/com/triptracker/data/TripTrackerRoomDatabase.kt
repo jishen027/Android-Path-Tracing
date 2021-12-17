@@ -15,7 +15,7 @@ abstract class TripTrackerRoomDatabase: RoomDatabase() {
 
     abstract fun imageDataDao(): ImageDataDao
     abstract fun routeDataDao(): RouteDataDao
-    abstract fun positionData(): PositionData
+    abstract fun positionData(): PositionDataDao
 
 
     companion object{
