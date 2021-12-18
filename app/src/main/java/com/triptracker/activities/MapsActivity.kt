@@ -84,7 +84,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var currentTemperature: Float = 0f;
 
     //marker and polyline
-    var points = mutableListOf<LatLng>();
+    var points = mutableListOf<LatLng>()
+    var markers = mutableListOf<Marker>()
+    var polylines = mutableListOf<Polyline>()
+
+
 
     // sensor
     private var sensorViewModel: SensorViewModel? = null
@@ -97,34 +101,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-
-
-        // Sensor activities
-        this.sensorViewModel = ViewModelProvider(this)[SensorViewModel::class.java]
-
-        this.sensorViewModel!!.retrievePressureData()!!.observe(this,
-            //  create observer, whenever the value is changed this func will be called
-            { newValue ->
-                newValue?.also{
-                   Log.i("Data in UI - Pressure", it.toString())
-                    currentPressure = it;
-                }
-            })
-
-        this.sensorViewModel!!.retrieveTemperatureData()!!.observe(this,
-            { newValue ->
-                    newValue?.also {
-                        Log.i("Data in UI - Temp", it.toString())
-                        currentTemperature = it;
-                    }
-                }
-            )
-
-        if (savedInstanceState != null) {
-            lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
-            cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION)
-        }
 
         setContentView(R.layout.activity_maps)
 
@@ -140,29 +116,53 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
 
 
+        // Sensor activities
+        this.sensorViewModel = ViewModelProvider(this)[SensorViewModel::class.java]
+
+        this.sensorViewModel!!.retrievePressureData()!!.observe(this,
+            //  create observer, whenever the value is changed this func will be called
+            { newValue ->
+                newValue?.also{
+                    Log.i("Data in UI - Pressure", it.toString())
+                    currentPressure = it;
+                }
+            })
+
+        this.sensorViewModel!!.retrieveTemperatureData()!!.observe(this,
+            { newValue ->
+                newValue?.also {
+                    Log.i("Data in UI - Temp", it.toString())
+                    currentTemperature = it;
+                }
+            }
+        )
+
+        if (savedInstanceState != null) {
+            lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
+            cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION)
+        }
         // Activities for buttons =============================================================
 
         /**
          * tkTimer is for set a regular intervals(5 seconds) to track user's location temperature and pressure.
-         *
          * */
         class ykTimer() : TimerTask() {
             override fun run() {
-                addMarkerPoint()
+                addPolyLine()
             }
         }
         yk = ykTimer()
-
-
-
         startRecordBtn = findViewById<Button>(R.id.start_record)
         startRecordBtn.setOnClickListener(){
             if(buttonState) {
+                cleanMap()
                 yk = ykTimer()
                 openStartRouteDialog()
             } else {
+                this.sensorViewModel?.stopSensing()
                 yk.cancel()
                 yk = ykTimer()
+                addMarkerPoint()
                 setAddPhotoVisible()
                 startRecordBtn.text = resources.getString(R.string.start);
             }
@@ -198,6 +198,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         startBtn.setOnClickListener {
             Timer().schedule(yk, Date(), 5000)
+            addMarkerPoint()
+            this.sensorViewModel?.startSensing()
             setAddPhotoVisible()
             startRecordBtn.text = resources.getString(R.string.stop)
             createNewRoute(routeTitle.text.toString(), routeDesc.text.toString())
@@ -249,9 +251,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         var insertJob = async { positionDao.insert(positionData) }
         insertJob.await().toInt()
     }
-
     /**
-     * addmarkerPoint() will get user's current position(latitude and longitude) and put a marker on the map
+     * addMarkerPoint() will get user's current position(latitude and longitude) and put a marker on the map
      *
      * */
     private fun addMarkerPoint(){
@@ -264,24 +265,70 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                         lastKnownLocation = task.result
                         if (lastKnownLocation != null) {
                             val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-                            mMap?.addMarker(
-                                MarkerOptions()
-                                    .position(markerPosition)
-                            )
+                                var marker = mMap?.addMarker(
+                                    MarkerOptions()
+                                        .position(markerPosition)
+                                )
                             points.add(markerPosition)
-                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
-                            val polylineOptions = PolylineOptions().addAll(points)
-                            val polyline = mMap.addPolyline(polylineOptions)
-
+                            if (marker != null) {
+                                markers.add(marker)
+                            }
                         }
                     } else {
-
+                        Log.d(TAG, "Current location is null. Using defaults.")
+                        Log.e(TAG, "Exception: %s", task.exception)
+                        mMap?.moveCamera(CameraUpdateFactory
+                            .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat()))
+                        mMap?.uiSettings?.isMyLocationButtonEnabled = false
                     }
                 }
             }
         } catch (e: SecurityException) {
             Log.e("Exception: %s", e.message, e)
         }
+    }
+
+    private fun addPolyLine(){
+        try {
+            if (locationPermissionGranted) {
+                val locationResult = fusedLocationProviderClient.lastLocation
+                locationResult.addOnCompleteListener(this) { task ->
+                    if (task.isSuccessful) {
+                        // Set the map's camera position to the current location of the device.
+                        lastKnownLocation = task.result
+                        if (lastKnownLocation != null) {
+                            val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
+                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
+                            points.add(markerPosition)
+                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
+                            val polylineOptions = PolylineOptions().addAll(points)
+                            var polyline =  mMap.addPolyline(polylineOptions)
+                            polylines.add(polyline)
+                        }
+                    } else {
+                        Log.d(TAG, "Current location is null. Using defaults.")
+                        Log.e(TAG, "Exception: %s", task.exception)
+                        mMap?.moveCamera(CameraUpdateFactory
+                            .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat()))
+                        mMap?.uiSettings?.isMyLocationButtonEnabled = false
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e("Exception: %s", e.message, e)
+        }
+    }
+
+    private fun cleanMap(){
+        for (marker in markers){
+            marker.remove()
+        }
+
+        for(polyline in polylines){
+            polyline.remove()
+        }
+        markers.removeAll(markers)
+        points.removeAll(points)
     }
 
     /**
@@ -304,7 +351,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                                     .position(markerPosition)
                                     .icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(
                                         android.graphics.Bitmap.createScaledBitmap(bitmap, 200, 200, false)))
-
                             )
                         }
                     }
@@ -314,8 +360,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             Log.e("Exception: %s", e.message, e)
         }
     }
-
-
 
     /**
      * Manipulates the map once available.
