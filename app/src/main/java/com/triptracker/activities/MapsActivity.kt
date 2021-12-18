@@ -269,6 +269,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                                         .position(markerPosition)
                                 )
                             points.add(markerPosition)
+                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
                             if (marker != null) {
                                 markers.add(marker)
                             }
@@ -286,7 +287,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             Log.e("Exception: %s", e.message, e)
         }
     }
-
+    /***
+     * get current position and insert the position to the latlng list then draw a ployline on the map
+     */
     private fun addPolyLine(){
         try {
             if (locationPermissionGranted) {
@@ -297,7 +300,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                         lastKnownLocation = task.result
                         if (lastKnownLocation != null) {
                             val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
                             points.add(markerPosition)
                             createNewPosition(markerPosition.latitude, markerPosition.longitude)
                             val polylineOptions = PolylineOptions().addAll(points)
@@ -318,6 +320,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+
+    /**
+     * remove all markers and polyline on the map
+     */
     private fun cleanMap(){
         for (marker in markers){
             marker.remove()
@@ -331,8 +337,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     /**
-     * addmarkerPoint() will get user's current position(latitude and longitude) and put a image marker on the map
-     *
+     * user's current position(latitude and longitude) and put a image marker on the map
      */
     private fun addImageMarker(){
         try {
@@ -620,7 +625,4 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         // Used for selecting the current place.
         private const val M_MAX_ENTRIES = 5
     }
-
-
-
 }

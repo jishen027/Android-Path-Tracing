@@ -47,15 +47,18 @@ class RoutesActivity : AppCompatActivity() {
             val intent = Intent(this, MapsActivity::class.java)
             this.startActivity(intent)
         })
-
+        init()
         loadRoutes()
     }
 
-    private fun loadRoutes() = runBlocking {
+    private fun init() {
         GlobalScope.launch {
             routeDao = (this@RoutesActivity.application as TripTracker)
                 .databaseObj.routeDataDao()
         }
+    }
+
+    private fun loadRoutes() = runBlocking {
         var routes: List<RouteData> = routeDao.getItems()
 
         routes.forEach{
