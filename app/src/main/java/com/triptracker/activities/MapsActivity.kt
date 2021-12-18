@@ -98,7 +98,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var routeDao: RouteDataDao
 
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -144,7 +143,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         // Activities for buttons =============================================================
 
         /**
-         * tkTimer is for set a regular intervals(5 seconds) to track user's location temperature and pressure.
+         * ykTimer is for set a regular intervals(5 seconds) to track user's location temperature and pressure.
          * */
         class ykTimer() : TimerTask() {
             override fun run() {
@@ -400,8 +399,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation()
-
-
 
     }
 
