@@ -10,10 +10,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.Menu
 import android.view.View
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
@@ -24,22 +26,22 @@ import com.triptracker.data.ImageData
 import com.triptracker.data.ImageDataDao
 import kotlinx.coroutines.*
 import pl.aprilapps.easyphotopicker.*
-import java.util.ArrayList
 import com.triptracker.R
+import com.triptracker.adaptors.GalleryAdapter.Companion.items
+import java.util.*
 
 class GalleryActivity : AppCompatActivity() {
+
     private var myDataset: MutableList<ImageData> = ArrayList<ImageData>()
     private lateinit var daoObj: ImageDataDao
-    private lateinit var mAdapter: RecyclerView.Adapter<RecyclerView.ViewHolder>
+    private lateinit var mAdapter: GalleryAdapter
     private lateinit var mRecyclerView: RecyclerView
     private lateinit var easyImage: EasyImage
-    val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     companion object {
         private const val REQUEST_READ_EXTERNAL_STORAGE = 2987
         private const val REQUEST_WRITE_EXTERNAL_STORAGE = 7829
         private const val REQUEST_CAMERA_CODE = 100
-
     }
 
     val startForResult =
@@ -70,7 +72,8 @@ class GalleryActivity : AppCompatActivity() {
         // set up the RecyclerView
         val numberOfColumns = 4
         mRecyclerView.layoutManager = GridLayoutManager(this, numberOfColumns)
-        mAdapter = GalleryAdapter(myDataset) as RecyclerView.Adapter<RecyclerView.ViewHolder>
+        mAdapter = GalleryAdapter(this@GalleryActivity, items)
+
         mRecyclerView.adapter = mAdapter
 
         findViewById<FloatingActionButton>(R.id.fab_home).setOnClickListener(View.OnClickListener {
@@ -87,6 +90,53 @@ class GalleryActivity : AppCompatActivity() {
         fabGallery.setOnClickListener(View.OnClickListener {
             easyImage.openChooser(this@GalleryActivity)
         })
+
+//        override fun onCreateOptionsMenu(menu: Menu): Boolean {
+//            menuInflater.inflate(R.menu.main_menu, menu)
+//
+//            var item: MenuItem = menu!!.findItem(R.id.action_search)
+//
+//            if (item!= null) {
+//                var searchView = item.actionView as SearchView
+//
+//                searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+//                    override fun onQueryTextSubmit(query: String?): Boolean {
+//                        return true
+//                    }
+//
+//                    override fun onQueryTextChange(newText: String?): Boolean {
+//                        displayList.clear()
+//                        var search = newText?.toLowerCase()
+//
+//                        return false
+//                    }
+//                })
+//            }
+//
+//            return super.onCreateOptionsMenu(menu)
+//        }
+
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+
+        menuInflater.inflate(R.menu.main_menu, menu)
+        var menuItem=menu!!.findItem(R.id.action_search)
+        var searchView=menuItem.actionView as SearchView
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener{
+
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                TODO("Not yet implemented")
+            }
+
+            @SuppressLint("NotifyDataSetChanged")
+            override fun onQueryTextChange(newText: String?): Boolean {
+                mAdapter.filter.filter(newText)
+                mAdapter.notifyDataSetChanged()
+                return false
+            }
+        })
+        return true
     }
 
     /**
@@ -251,7 +301,6 @@ class GalleryActivity : AppCompatActivity() {
                 imageUri = mediaFile.file.absolutePath
             )
             // Update the database with the newly created object
-//            var id = insertData(imageData)
             var id = insertData(imageData)
             imageData.id = id
             imageDataList.add(imageData)

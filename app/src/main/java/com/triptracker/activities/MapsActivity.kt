@@ -3,17 +3,10 @@ package com.triptracker.activities
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Dialog
-import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.location.Location
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -39,9 +32,7 @@ import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.android.material.textfield.TextInputEditText
 import com.triptracker.R
 import com.triptracker.data.*
 import com.triptracker.databinding.ActivityMapsBinding
@@ -49,7 +40,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import pl.aprilapps.easyphotopicker.EasyImage
 import java.util.*
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -66,18 +56,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // The Location Permission
     private var locationPermissionGranted = false
-
     private var lastKnownLocation: Location? = null
-
     private val defaultLocation = LatLng(-33.8523341, 151.2106085)
-
     private var likelyPlaceNames: Array<String?> = arrayOfNulls(0)
     private var likelyPlaceAddresses: Array<String?> = arrayOfNulls(0)
     private var likelyPlaceAttributions: Array<List<*>?> = arrayOfNulls(0)
     private var likelyPlaceLatLngs: Array<LatLng?> = arrayOfNulls(0)
-
     private var cameraPosition: CameraPosition? = null
-
     private var buttonState = true
     private var currentRouteId: Int = -1;
     private var currentPressure: Float = 0f;
@@ -93,12 +78,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var positionDao: PositionDataDao
     private lateinit var routeDao: RouteDataDao
 
-
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-
 
         // Sensor activities
         this.sensorViewModel = ViewModelProvider(this)[SensorViewModel::class.java]
@@ -133,7 +114,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
 
-
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
@@ -144,7 +124,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         /**
          * tkTimer is for set a regular intervals(5 seconds) to track user's location temperature and pressure.
-         *
          * */
         class ykTimer() : TimerTask() {
             override fun run() {
@@ -153,9 +132,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         yk = ykTimer()
 
-
-
-        startRecordBtn = findViewById<Button>(R.id.start_record)
+        startRecordBtn = findViewById(R.id.start_record)
         startRecordBtn.setOnClickListener(){
             if(buttonState) {
                 yk = ykTimer()
@@ -315,8 +292,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-
-
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -356,9 +331,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation()
-
-
-
     }
 
     private fun getLocationPermission(){
@@ -579,7 +551,4 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         // Used for selecting the current place.
         private const val M_MAX_ENTRIES = 5
     }
-
-
-
 }
