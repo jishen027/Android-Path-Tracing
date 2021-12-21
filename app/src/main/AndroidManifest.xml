@@ -33,7 +33,7 @@
         android:theme="@style/Theme.AndroidDevProj">
         <activity
             android:name="com.triptracker.activities.GalleryActivity"
-            android:exported="false" />
+            android:exported="true" />
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" />
@@ -54,8 +54,9 @@
         <activity
             android:name="com.triptracker.activities.RoutesActivity"
             android:exported="true" />
-
-        <service android:name=".adaptors.MapService"/>
+        <activity
+            android:name="com.triptracker.activities.ShowRouteActivity"
+            android:exported="true" />
     </application>
 
 </manifest>

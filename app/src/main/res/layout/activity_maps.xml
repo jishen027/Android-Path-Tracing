@@ -22,12 +22,11 @@
             android:id="@+id/addPhotoFab"
             android:layout_width="wrap_content"
             android:layout_height="67dp"
-            android:layout_centerHorizontal="true"
             android:layout_gravity="bottom|center_horizontal"
             android:layout_marginBottom="95dp"
-            android:clickable="true"
             android:src="@drawable/ic_add_a_photo_black_24dp"
-            android:visibility="invisible" />
+            android:visibility="invisible"
+            android:focusable="true" />
 
         <Button
             android:id="@+id/start_record"

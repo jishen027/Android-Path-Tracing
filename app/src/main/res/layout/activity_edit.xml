@@ -29,7 +29,7 @@
     <ImageView
         android:id="@+id/edit_image"
         android:layout_width="match_parent"
-        android:layout_height="400dp"
+        android:layout_height="350dp"
         android:layout_margin="10dp"
         app:layout_constraintBottom_toTopOf="@+id/edit_image_title_label"
         app:layout_constraintEnd_toEndOf="parent"
