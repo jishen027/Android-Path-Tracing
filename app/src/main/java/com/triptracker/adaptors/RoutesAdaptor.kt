@@ -1,6 +1,7 @@
 package com.triptracker.adaptors
 
 import android.content.Context
+import android.content.Intent
 import android.media.Image
 import android.view.LayoutInflater
 import android.view.View
@@ -8,16 +9,16 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.triptracker.R
+import com.triptracker.activities.GalleryActivity
+import com.triptracker.activities.RoutesActivity
+import com.triptracker.activities.ShowImageActivity
+import com.triptracker.activities.ShowRouteActivity
 
 class RoutesAdaptor : RecyclerView.Adapter<RoutesAdaptor.ViewHolder> {
     private lateinit var context: Context
-    private var items: MutableList<RouteElement>
+    var items: MutableList<RouteElement>
 
-    constructor(items: MutableList<RouteElement>) {
-        this.items = items
-    }
-
-    constructor(cont: Context, items: MutableList<RouteElement>) : super() {
+    constructor(cont: Context, items: MutableList<RouteElement>) {
         this.items = items
         context = cont
     }
@@ -35,6 +36,15 @@ class RoutesAdaptor : RecyclerView.Adapter<RoutesAdaptor.ViewHolder> {
             holder.title.text = items[position].title
             holder.description.text = items[position].description
         }
+
+        holder.itemView.setOnClickListener(View.OnClickListener {
+            val routesActivityContext = context as RoutesActivity
+            routesActivityContext.startForResult.launch(
+                Intent(context, ShowRouteActivity::class.java).apply {
+                    putExtra("position", items[position].id)
+                }
+            )
+        })
     }
 
     override fun getItemCount(): Int {

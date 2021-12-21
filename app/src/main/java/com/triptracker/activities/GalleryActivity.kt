@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.Dialog
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
@@ -11,6 +12,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageView
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -24,15 +28,24 @@ import com.triptracker.data.ImageData
 import com.triptracker.data.ImageDataDao
 import kotlinx.coroutines.*
 import pl.aprilapps.easyphotopicker.*
-import java.util.ArrayList
 import com.triptracker.R
+import java.util.*
+import android.graphics.BitmapFactory
+
+import android.graphics.Bitmap
+import android.util.Log
+import android.widget.SearchView
+import androidx.appcompat.widget.Toolbar
+
 
 class GalleryActivity : AppCompatActivity() {
+    private var allImages: MutableList<ImageData> = ArrayList<ImageData>()
     private var myDataset: MutableList<ImageData> = ArrayList<ImageData>()
     private lateinit var daoObj: ImageDataDao
     private lateinit var mAdapter: RecyclerView.Adapter<RecyclerView.ViewHolder>
     private lateinit var mRecyclerView: RecyclerView
     private lateinit var easyImage: EasyImage
+    private lateinit var newImageDialog: Dialog
     val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     companion object {
@@ -68,10 +81,11 @@ class GalleryActivity : AppCompatActivity() {
         // Log.d("TAG", "message")
         mRecyclerView = findViewById(R.id.grid_recycler_view)
         // set up the RecyclerView
-        val numberOfColumns = 4
+        val numberOfColumns = 3
         mRecyclerView.layoutManager = GridLayoutManager(this, numberOfColumns)
         mAdapter = GalleryAdapter(myDataset) as RecyclerView.Adapter<RecyclerView.ViewHolder>
         mRecyclerView.adapter = mAdapter
+
 
         findViewById<FloatingActionButton>(R.id.fab_home).setOnClickListener(View.OnClickListener {
             val intent = Intent(this, MapsActivity::class.java)
@@ -82,6 +96,27 @@ class GalleryActivity : AppCompatActivity() {
         checkPermissions(applicationContext)
         initEasyImage()
 
+        val searchView : SearchView = findViewById(R.id.gallery_search_view)
+
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextChange(newText: String): Boolean {
+                val filteredValue: MutableList<ImageData> = ArrayList<ImageData>()
+                filteredValue.clear()
+                for(each in allImages) {
+                    if(each.imageTitle.contains(newText)) {
+                        filteredValue.add(each)
+                    }
+                }
+                myDataset.clear()
+                myDataset.addAll(filteredValue)
+                Log.i("search", myDataset.toString())
+                mAdapter.notifyDataSetChanged()
+                return true
+            }
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                return false
+            }
+        })
         // the floating button that will allow us to get the images from the Gallery
         val fabGallery: FloatingActionButton = findViewById(R.id.fab_gallery)
         fabGallery.setOnClickListener(View.OnClickListener {
@@ -103,7 +138,11 @@ class GalleryActivity : AppCompatActivity() {
         GlobalScope.launch {
             daoObj = (this@GalleryActivity.application as TripTracker)
                 .databaseObj.imageDataDao()
-            myDataset.addAll(daoObj.getItems())
+
+            val receivedData = ArrayList<ImageData>()
+            receivedData.addAll(daoObj.getItems())
+            myDataset.addAll(receivedData)
+            allImages.addAll(receivedData)
         }
     }
 
@@ -219,10 +258,8 @@ class GalleryActivity : AppCompatActivity() {
      */
     @SuppressLint("NotifyDataSetChanged")
     private fun onPhotosReturned(returnedPhotos: Array<MediaFile>) {
-        myDataset.addAll(getImageData(returnedPhotos))
-
+        addImagesInfo(returnedPhotos)
         // we tell the adapter that the data is changed and hence the grid needs
-        mAdapter.notifyDataSetChanged()
         mRecyclerView.scrollToPosition(returnedPhotos.size - 1)
     }
 
@@ -242,20 +279,43 @@ class GalleryActivity : AppCompatActivity() {
      * @param returnedPhotos
      * @return
      */
-    private fun getImageData(returnedPhotos: Array<MediaFile>): List<ImageData> {
-        val imageDataList: MutableList<ImageData> = ArrayList<ImageData>()
-        for (mediaFile in returnedPhotos) {
-            val fileNameAsTempTitle = mediaFile.file.name
+    private fun addImagesInfo(returnedPhotos: Array<MediaFile>) {
+        newImageDialog = Dialog(this)
+        var imgIndex = 0;
+        openNewImageDialog(returnedPhotos[imgIndex], myDataset.size)
+        newImageDialog.setOnDismissListener {
+            imgIndex++
+            if(imgIndex != returnedPhotos.size) {
+                openNewImageDialog(returnedPhotos[imgIndex], myDataset.size + imgIndex)
+            }
+        }
+    }
+
+    private fun openNewImageDialog(mediaFile: MediaFile, imgIndex: Int) {
+        newImageDialog.setContentView(R.layout.new_picture_popup)
+        val cancelBtn = newImageDialog.findViewById<Button>(R.id.cancel_photo_btn)
+        val startBtn = newImageDialog.findViewById<Button>(R.id.add_photo_btn)
+        val routeTitle = newImageDialog.findViewById<EditText>(R.id.photo_title_field)
+        val routeDesc = newImageDialog.findViewById<EditText>(R.id.photo_desc_field)
+        val newImageView = newImageDialog.findViewById<ImageView>(R.id.new_image_view)
+        val myBitmap = BitmapFactory.decodeFile(mediaFile.file.absolutePath)
+        newImageView.setImageBitmap(myBitmap)
+        startBtn.setOnClickListener {
             var imageData = ImageData(
-                imageTitle = fileNameAsTempTitle,
+                imageTitle = routeTitle.text.toString(),
+                imageDescription = routeDesc.text.toString(),
                 imageUri = mediaFile.file.absolutePath
             )
-            // Update the database with the newly created object
-//            var id = insertData(imageData)
             var id = insertData(imageData)
             imageData.id = id
-            imageDataList.add(imageData)
+            myDataset.add(imageData)
+            allImages.add(imageData)
+            newImageDialog.dismiss()
+            mAdapter.notifyItemInserted(imgIndex)
         }
-        return imageDataList
+        cancelBtn.setOnClickListener {
+            newImageDialog.dismiss()
+        }
+        newImageDialog.show()
     }
 }

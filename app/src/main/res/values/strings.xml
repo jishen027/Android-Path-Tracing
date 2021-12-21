@@ -29,5 +29,8 @@
     <string name="start">Start</string>
     <string name="stop">Stop</string>
     <string name="search">search</string>
+    <string name="add_image">Add image</string>
+    <string name="image_title">Image title</string>
+    <string name="image_description">Image description</string>
 
 </resources>

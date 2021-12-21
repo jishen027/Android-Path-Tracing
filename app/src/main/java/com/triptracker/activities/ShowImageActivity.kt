@@ -59,7 +59,11 @@ class ShowImageActivity : AppCompatActivity() {
 
             imageView.setImageBitmap(GalleryAdapter.items[position].thumbnail!!)
             titleToolbar.title = GalleryAdapter.items[position].imageTitle
-            descriptionTextView.text = GalleryAdapter.items[position].imageDescription
+            if(GalleryAdapter.items[position].imageDescription.equals("")) {
+                descriptionTextView.text = "<no description>"
+            } else {
+                descriptionTextView.text =  GalleryAdapter.items[position].imageDescription
+            }
 
             val fabEdit: FloatingActionButton = findViewById(R.id.fab_edit)
             fabEdit.setOnClickListener(View.OnClickListener {
@@ -67,6 +71,13 @@ class ShowImageActivity : AppCompatActivity() {
                     Intent( this, EditImageActivity::class.java).apply {
                         putExtra("position", position)
                     }
+                )
+            })
+
+            val fabReturn: FloatingActionButton = findViewById(R.id.return_fab)
+            fabReturn.setOnClickListener(View.OnClickListener {
+                startForResult.launch(
+                    Intent( this, GalleryActivity::class.java).apply {}
                 )
             })
         }

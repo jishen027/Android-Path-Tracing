@@ -164,8 +164,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 addMarkerPoint()
                 setAddPhotoVisible()
                 startRecordBtn.text = resources.getString(R.string.start);
+                buttonState = !buttonState
             }
-            buttonState = !buttonState
         }
 
         findViewById<FloatingActionButton>(R.id.gallery_btn).setOnClickListener(View.OnClickListener {
@@ -204,6 +204,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             createNewRoute(routeTitle.text.toString(), routeDesc.text.toString())
             startRouteDialog.dismiss()
             checkData()
+            buttonState = !buttonState
         }
         cancelBtn.setOnClickListener {
             startRouteDialog.dismiss()
