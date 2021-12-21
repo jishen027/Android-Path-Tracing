@@ -4,12 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Filter
 import android.widget.Filterable
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.triptracker.R
 import com.triptracker.data.ImageData
@@ -46,6 +48,7 @@ class GalleryAdapter : RecyclerView.Adapter<GalleryAdapter.ViewHolder>, Filterab
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         if (items[position].thumbnail == null) {
+            holder.imageTitle.text = items[position].imageTitle
             items[position].let {
                 scope.launch {
                     val bitmap =
@@ -74,6 +77,7 @@ class GalleryAdapter : RecyclerView.Adapter<GalleryAdapter.ViewHolder>, Filterab
 
     class ViewHolder constructor(itemView: View) : RecyclerView.ViewHolder(itemView) {
         var imageView: ImageView = itemView.findViewById<View>(R.id.image_item) as ImageView
+        var imageTitle: TextView = itemView.findViewById<View>(R.id.img_title) as TextView
 
     }
 

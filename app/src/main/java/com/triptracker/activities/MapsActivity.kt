@@ -2,12 +2,15 @@ package com.triptracker.activities
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.Dialog
+import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.location.Location
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
@@ -34,12 +37,14 @@ import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.triptracker.R
+import com.triptracker.adaptors.MapService
 import com.triptracker.data.*
 import com.triptracker.databinding.ActivityMapsBinding
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import pl.aprilapps.easyphotopicker.*
 import java.util.*
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -56,20 +61,32 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // The Location Permission
     private var locationPermissionGranted = false
+
     private var lastKnownLocation: Location? = null
+
     private val defaultLocation = LatLng(-33.8523341, 151.2106085)
+
     private var likelyPlaceNames: Array<String?> = arrayOfNulls(0)
     private var likelyPlaceAddresses: Array<String?> = arrayOfNulls(0)
     private var likelyPlaceAttributions: Array<List<*>?> = arrayOfNulls(0)
     private var likelyPlaceLatLngs: Array<LatLng?> = arrayOfNulls(0)
+
     private var cameraPosition: CameraPosition? = null
+
     private var buttonState = true
     private var currentRouteId: Int = -1;
     private var currentPressure: Float = 0f;
     private var currentTemperature: Float = 0f;
 
     //marker and polyline
-    var points = mutableListOf<LatLng>();
+    var points = mutableListOf<LatLng>()
+    var markers = mutableListOf<Marker>()
+    var polylines = mutableListOf<Polyline>()
+
+    //easy image
+    private lateinit var easyImage: EasyImage
+
+
 
     // sensor
     private var sensorViewModel: SensorViewModel? = null
@@ -77,35 +94,39 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     //dao
     private lateinit var positionDao: PositionDataDao
     private lateinit var routeDao: RouteDataDao
+    private lateinit var imageDao: ImageDataDao
+
+    //Storage permission
+    private var readStoragePermissionGranted = false
+    private var writeStoragePermissionGranted = false
+    private var cameraPermissionGranted = false
+
+    private var allPermissions = mutableListOf<String>()
+
+    private var imageFile:MediaFile? = null
+
+    companion object {
+        private val TAG = MapsActivity::class.java.simpleName
+        private const val DEFAULT_ZOOM = 15
+        private const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
+
+        // Keys for storing activity state.
+        private const val KEY_CAMERA_POSITION = "camera_position"
+        private const val KEY_LOCATION = "location"
+
+        // Used for selecting the current place.
+        private const val M_MAX_ENTRIES = 5
+
+        //User for easy image
+        private const val REQUEST_READ_EXTERNAL_STORAGE = 2987
+        private const val REQUEST_WRITE_EXTERNAL_STORAGE = 7829
+        private const val REQUEST_CAMERA_CODE = 100
+        private const val ALL_PERMISSIONS = 1
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Sensor activities
-        this.sensorViewModel = ViewModelProvider(this)[SensorViewModel::class.java]
-
-        this.sensorViewModel!!.retrievePressureData()!!.observe(this,
-            //  create observer, whenever the value is changed this func will be called
-            { newValue ->
-                newValue?.also{
-                   Log.i("Data in UI - Pressure", it.toString())
-                    currentPressure = it;
-                }
-            })
-
-        this.sensorViewModel!!.retrieveTemperatureData()!!.observe(this,
-            { newValue ->
-                    newValue?.also {
-                        Log.i("Data in UI - Temp", it.toString())
-                        currentTemperature = it;
-                    }
-                }
-            )
-
-        if (savedInstanceState != null) {
-            lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
-            cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION)
-        }
 
         setContentView(R.layout.activity_maps)
 
@@ -114,36 +135,69 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
 
+        //start map service
+        val intent = Intent(this, MapService::class.java)
+        startService(intent)
+
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
 
+        // Sensor activities
+        this.sensorViewModel = ViewModelProvider(this)[SensorViewModel::class.java]
+
+        this.sensorViewModel!!.retrievePressureData()!!.observe(this,
+            //  create observer, whenever the value is changed this func will be called
+            { newValue ->
+                newValue?.also{
+                    Log.i("Data in UI - Pressure", it.toString())
+                    currentPressure = it;
+                }
+            })
+
+        this.sensorViewModel!!.retrieveTemperatureData()!!.observe(this,
+            { newValue ->
+                newValue?.also {
+                    Log.i("Data in UI - Temp", it.toString())
+                    currentTemperature = it;
+                }
+            }
+        )
+
+        if (savedInstanceState != null) {
+            lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
+            cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION)
+        }
         // Activities for buttons =============================================================
 
         /**
-         * tkTimer is for set a regular intervals(5 seconds) to track user's location temperature and pressure.
+         * ykTimer is for set a regular intervals(5 seconds) to track user's location temperature and pressure.
          * */
         class ykTimer() : TimerTask() {
             override fun run() {
-                addMarkerPoint()
+                addPolyLine()
             }
         }
         yk = ykTimer()
-
-        startRecordBtn = findViewById(R.id.start_record)
+        startRecordBtn = findViewById<Button>(R.id.start_record)
         startRecordBtn.setOnClickListener(){
             if(buttonState) {
+                cleanMap()
                 yk = ykTimer()
                 openStartRouteDialog()
             } else {
+                stopService(intent)
+                this.sensorViewModel?.stopSensing()
                 yk.cancel()
                 yk = ykTimer()
+                addMarkerPoint()
                 setAddPhotoVisible()
                 startRecordBtn.text = resources.getString(R.string.start);
+                buttonState = !buttonState
             }
-            buttonState = !buttonState
         }
 
         findViewById<FloatingActionButton>(R.id.gallery_btn).setOnClickListener(View.OnClickListener {
@@ -157,13 +211,43 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         })
 
         findViewById<FloatingActionButton>(R.id.addPhotoFab).setOnClickListener(View.OnClickListener {
-
+            easyImage.openChooser(this@MapsActivity)
         })
 
-        initData();
 
         //end of  activities for buttons =============================================================
+        initData();
+
     }
+
+    /**
+     *initialises EasyImage
+     */
+    private fun initEasyImage(){
+        easyImage = EasyImage.Builder(this)
+            .setChooserType(ChooserType.CAMERA_AND_GALLERY)
+            .build()
+    }
+
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        easyImage.handleActivityResult(requestCode, resultCode,data,this,
+            object: DefaultCallback() {
+                override fun onMediaFilesPicked(imageFiles: Array<MediaFile>, source: MediaSource) {
+                    addImageMarker(imageFiles[0])
+                }
+
+                override fun onImagePickerError(error: Throwable, source: MediaSource) {
+                    super.onImagePickerError(error, source)
+                }
+                override fun onCanceled(source: MediaSource) {
+                    super.onCanceled(source)
+                }
+            })
+    }
+
 
     private fun openStartRouteDialog() {
         startRouteDialog = Dialog(this)
@@ -175,11 +259,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         startBtn.setOnClickListener {
             Timer().schedule(yk, Date(), 5000)
+            addMarkerPoint()
+            this.sensorViewModel?.startSensing()
             setAddPhotoVisible()
             startRecordBtn.text = resources.getString(R.string.stop)
             createNewRoute(routeTitle.text.toString(), routeDesc.text.toString())
             startRouteDialog.dismiss()
             checkData()
+            buttonState = !buttonState
         }
         cancelBtn.setOnClickListener {
             startRouteDialog.dismiss()
@@ -193,6 +280,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 .databaseObj.routeDataDao()
             positionDao = (this@MapsActivity.application as TripTracker)
                 .databaseObj.positionData()
+            imageDao = (this@MapsActivity.application as TripTracker)
+                .databaseObj.imageDataDao()
+
         }
     }
 
@@ -226,9 +316,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         var insertJob = async { positionDao.insert(positionData) }
         insertJob.await().toInt()
     }
-
     /**
-     * addmarkerPoint() will get user's current position(latitude and longitude) and put a marker on the map
+     * addMarkerPoint() will get user's current position(latitude and longitude) and put a marker on the map
      *
      * */
     private fun addMarkerPoint(){
@@ -241,18 +330,22 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                         lastKnownLocation = task.result
                         if (lastKnownLocation != null) {
                             val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-                            mMap?.addMarker(
-                                MarkerOptions()
-                                    .position(markerPosition)
-                            )
+                                var marker = mMap?.addMarker(
+                                    MarkerOptions()
+                                        .position(markerPosition)
+                                )
                             points.add(markerPosition)
                             createNewPosition(markerPosition.latitude, markerPosition.longitude)
-                            val polylineOptions = PolylineOptions().addAll(points)
-                            val polyline = mMap.addPolyline(polylineOptions)
-
+                            if (marker != null) {
+                                markers.add(marker)
+                            }
                         }
                     } else {
-
+                        Log.d(TAG, "Current location is null. Using defaults.")
+                        Log.e(TAG, "Exception: %s", task.exception)
+                        mMap?.moveCamera(CameraUpdateFactory
+                            .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat()))
+                        mMap?.uiSettings?.isMyLocationButtonEnabled = false
                     }
                 }
             }
@@ -260,12 +353,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             Log.e("Exception: %s", e.message, e)
         }
     }
-
-    /**
-     * addmarkerPoint() will get user's current position(latitude and longitude) and put a image marker on the map
-     *
+    /***
+     * get current position and insert the position to the latlng list then draw a ployline on the map
      */
-    private fun addImageMarker(){
+    private fun addPolyLine(){
         try {
             if (locationPermissionGranted) {
                 val locationResult = fusedLocationProviderClient.lastLocation
@@ -275,13 +366,61 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                         lastKnownLocation = task.result
                         if (lastKnownLocation != null) {
                             val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-                            val bitmap = BitmapFactory.decodeResource(resources, R.drawable.jetpack)
+                            points.add(markerPosition)
+                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
+                            val polylineOptions = PolylineOptions().addAll(points)
+                            var polyline =  mMap.addPolyline(polylineOptions)
+                            polylines.add(polyline)
+                        }
+                    } else {
+                        Log.d(TAG, "Current location is null. Using defaults.")
+                        Log.e(TAG, "Exception: %s", task.exception)
+                        mMap?.moveCamera(CameraUpdateFactory
+                            .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat()))
+                        mMap?.uiSettings?.isMyLocationButtonEnabled = false
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e("Exception: %s", e.message, e)
+        }
+    }
+
+
+    /**
+     * remove all markers and polyline on the map
+     */
+    private fun cleanMap(){
+        for (marker in markers){
+            marker.remove()
+        }
+
+        for(polyline in polylines){
+            polyline.remove()
+        }
+        markers.removeAll(markers)
+        points.removeAll(points)
+    }
+
+    /**
+     * user's current position(latitude and longitude) and put a image marker on the map
+     */
+    private fun addImageMarker(mediaFile: MediaFile){
+        try {
+            if (locationPermissionGranted) {
+                val locationResult = fusedLocationProviderClient.lastLocation
+                locationResult.addOnCompleteListener(this) { task ->
+                    if (task.isSuccessful) {
+                        // Set the map's camera position to the current location of the device.
+                        lastKnownLocation = task.result
+                        if (lastKnownLocation != null) {
+                            val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
+                            val bitmap = BitmapFactory.decodeFile(mediaFile.file.absolutePath)
                             mMap?.addMarker(
                                 MarkerOptions()
                                     .position(markerPosition)
                                     .icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(
                                         android.graphics.Bitmap.createScaledBitmap(bitmap, 200, 200, false)))
-
                             )
                         }
                     }
@@ -324,6 +463,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         })
 
+
+//        getStoragePermission()
+//        getAllPermissions()
+
         getLocationPermission()
 
         // Turn on the My Location layer and the related control on the map.
@@ -331,6 +474,32 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation()
+
+        initEasyImage()
+
+    }
+
+    private fun getStoragePermission(){
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
+            readStoragePermissionGranted = true
+        }else{
+            allPermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
+            writeStoragePermissionGranted = true
+        }else{
+            allPermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED){
+            cameraPermissionGranted = true
+        }else{
+            allPermissions.add(Manifest.permission.CAMERA)
+        }
+        if(allPermissions.isNotEmpty()){
+            ActivityCompat.requestPermissions(this, allPermissions.toTypedArray(), ALL_PERMISSIONS)
+        }
     }
 
     private fun getLocationPermission(){
@@ -342,10 +511,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ){
             locationPermissionGranted = true
         }else{
+//            allPermissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
                 PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
         }
     }
+
+//    private fun getAllPermissions(){
+//        if(allPermissions.isNotEmpty()){
+//            ActivityCompat.requestPermissions(this, allPermissions.toTypedArray(), ALL_PERMISSIONS)
+//        }
+//    }
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -360,6 +536,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                     locationPermissionGranted = true
                 }
             }
+
+//            ALL_PERMISSIONS -> {
+//                if(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+//                    readStoragePermissionGranted = true
+//                    writeStoragePermissionGranted = true
+//                    cameraPermissionGranted = true
+//                }
+//            }
         }
         updateLocationUI()
     }
@@ -539,16 +723,4 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onSaveInstanceState(outState)
     }
 
-    companion object {
-        private val TAG = MapsActivity::class.java.simpleName
-        private const val DEFAULT_ZOOM = 15
-        private const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
-
-        // Keys for storing activity state.
-        private const val KEY_CAMERA_POSITION = "camera_position"
-        private const val KEY_LOCATION = "location"
-
-        // Used for selecting the current place.
-        private const val M_MAX_ENTRIES = 5
-    }
 }

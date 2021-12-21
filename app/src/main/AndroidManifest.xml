@@ -33,18 +33,15 @@
         android:theme="@style/Theme.AndroidDevProj">
         <activity
             android:name="com.triptracker.activities.GalleryActivity"
-            android:exported="false" />
-
+            android:exported="true" />
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" />
-
         <activity
             android:name="com.triptracker.activities.MapsActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -56,6 +53,9 @@
             android:exported="true" />
         <activity
             android:name="com.triptracker.activities.RoutesActivity"
+            android:exported="true" />
+        <activity
+            android:name="com.triptracker.activities.ShowRouteActivity"
             android:exported="true" />
     </application>
 
