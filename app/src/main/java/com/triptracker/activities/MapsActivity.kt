@@ -2,19 +2,15 @@ package com.triptracker.activities
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.Dialog
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.location.Location
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
@@ -39,17 +35,16 @@ import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.android.material.textfield.TextInputEditText
 import com.triptracker.R
+import com.triptracker.adaptors.MapService
 import com.triptracker.data.*
 import com.triptracker.databinding.ActivityMapsBinding
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import pl.aprilapps.easyphotopicker.EasyImage
+import pl.aprilapps.easyphotopicker.*
 import java.util.*
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -88,6 +83,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     var markers = mutableListOf<Marker>()
     var polylines = mutableListOf<Polyline>()
 
+    //easy image
+    private lateinit var easyImage: EasyImage
+
 
 
     // sensor
@@ -96,6 +94,35 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     //dao
     private lateinit var positionDao: PositionDataDao
     private lateinit var routeDao: RouteDataDao
+    private lateinit var imageDao: ImageDataDao
+
+    //Storage permission
+    private var readStoragePermissionGranted = false
+    private var writeStoragePermissionGranted = false
+    private var cameraPermissionGranted = false
+
+    private var allPermissions = mutableListOf<String>()
+
+    private var imageFile:MediaFile? = null
+
+    companion object {
+        private val TAG = MapsActivity::class.java.simpleName
+        private const val DEFAULT_ZOOM = 15
+        private const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
+
+        // Keys for storing activity state.
+        private const val KEY_CAMERA_POSITION = "camera_position"
+        private const val KEY_LOCATION = "location"
+
+        // Used for selecting the current place.
+        private const val M_MAX_ENTRIES = 5
+
+        //User for easy image
+        private const val REQUEST_READ_EXTERNAL_STORAGE = 2987
+        private const val REQUEST_WRITE_EXTERNAL_STORAGE = 7829
+        private const val REQUEST_CAMERA_CODE = 100
+        private const val ALL_PERMISSIONS = 1
+    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -107,6 +134,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         placesClient = Places.createClient(this)
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+
+        //start map service
+        val intent = Intent(this, MapService::class.java)
+        startService(intent)
 
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -158,6 +189,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 yk = ykTimer()
                 openStartRouteDialog()
             } else {
+                stopService(intent)
                 this.sensorViewModel?.stopSensing()
                 yk.cancel()
                 yk = ykTimer()
@@ -179,13 +211,43 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         })
 
         findViewById<FloatingActionButton>(R.id.addPhotoFab).setOnClickListener(View.OnClickListener {
-
+            easyImage.openChooser(this@MapsActivity)
         })
 
-        initData();
 
         //end of  activities for buttons =============================================================
+        initData();
+
     }
+
+    /**
+     *initialises EasyImage
+     */
+    private fun initEasyImage(){
+        easyImage = EasyImage.Builder(this)
+            .setChooserType(ChooserType.CAMERA_AND_GALLERY)
+            .build()
+    }
+
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        easyImage.handleActivityResult(requestCode, resultCode,data,this,
+            object: DefaultCallback() {
+                override fun onMediaFilesPicked(imageFiles: Array<MediaFile>, source: MediaSource) {
+                    addImageMarker(imageFiles[0])
+                }
+
+                override fun onImagePickerError(error: Throwable, source: MediaSource) {
+                    super.onImagePickerError(error, source)
+                }
+                override fun onCanceled(source: MediaSource) {
+                    super.onCanceled(source)
+                }
+            })
+    }
+
 
     private fun openStartRouteDialog() {
         startRouteDialog = Dialog(this)
@@ -218,6 +280,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 .databaseObj.routeDataDao()
             positionDao = (this@MapsActivity.application as TripTracker)
                 .databaseObj.positionData()
+            imageDao = (this@MapsActivity.application as TripTracker)
+                .databaseObj.imageDataDao()
+
         }
     }
 
@@ -340,7 +405,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     /**
      * user's current position(latitude and longitude) and put a image marker on the map
      */
-    private fun addImageMarker(){
+    private fun addImageMarker(mediaFile: MediaFile){
         try {
             if (locationPermissionGranted) {
                 val locationResult = fusedLocationProviderClient.lastLocation
@@ -350,7 +415,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                         lastKnownLocation = task.result
                         if (lastKnownLocation != null) {
                             val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-                            val bitmap = BitmapFactory.decodeResource(resources, R.drawable.jetpack)
+                            val bitmap = BitmapFactory.decodeFile(mediaFile.file.absolutePath)
                             mMap?.addMarker(
                                 MarkerOptions()
                                     .position(markerPosition)
@@ -398,6 +463,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         })
 
+
+//        getStoragePermission()
+//        getAllPermissions()
+
         getLocationPermission()
 
         // Turn on the My Location layer and the related control on the map.
@@ -406,6 +475,31 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         // Get the current location of the device and set the position of the map.
         getDeviceLocation()
 
+        initEasyImage()
+
+    }
+
+    private fun getStoragePermission(){
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
+            readStoragePermissionGranted = true
+        }else{
+            allPermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
+            writeStoragePermissionGranted = true
+        }else{
+            allPermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED){
+            cameraPermissionGranted = true
+        }else{
+            allPermissions.add(Manifest.permission.CAMERA)
+        }
+        if(allPermissions.isNotEmpty()){
+            ActivityCompat.requestPermissions(this, allPermissions.toTypedArray(), ALL_PERMISSIONS)
+        }
     }
 
     private fun getLocationPermission(){
@@ -417,10 +511,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ){
             locationPermissionGranted = true
         }else{
+//            allPermissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
                 PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
         }
     }
+
+//    private fun getAllPermissions(){
+//        if(allPermissions.isNotEmpty()){
+//            ActivityCompat.requestPermissions(this, allPermissions.toTypedArray(), ALL_PERMISSIONS)
+//        }
+//    }
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -435,6 +536,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                     locationPermissionGranted = true
                 }
             }
+
+//            ALL_PERMISSIONS -> {
+//                if(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+//                    readStoragePermissionGranted = true
+//                    writeStoragePermissionGranted = true
+//                    cameraPermissionGranted = true
+//                }
+//            }
         }
         updateLocationUI()
     }
@@ -614,16 +723,4 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onSaveInstanceState(outState)
     }
 
-    companion object {
-        private val TAG = MapsActivity::class.java.simpleName
-        private const val DEFAULT_ZOOM = 15
-        private const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
-
-        // Keys for storing activity state.
-        private const val KEY_CAMERA_POSITION = "camera_position"
-        private const val KEY_LOCATION = "location"
-
-        // Used for selecting the current place.
-        private const val M_MAX_ENTRIES = 5
-    }
 }
