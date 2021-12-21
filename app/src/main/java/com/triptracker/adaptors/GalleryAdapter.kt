@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -26,7 +25,7 @@ class GalleryAdapter : RecyclerView.Adapter<GalleryAdapter.ViewHolder>, Filterab
     private lateinit var context: Context
     var tempImageData = items
 
-    constructor(items: GalleryActivity): super() {
+    constructor(items: MutableList<ImageData>): super() {
         Companion.items = items as MutableList<ImageData>
     }
 

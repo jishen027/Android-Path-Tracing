@@ -61,18 +61,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // The Location Permission
     private var locationPermissionGranted = false
-
     private var lastKnownLocation: Location? = null
-
     private val defaultLocation = LatLng(-33.8523341, 151.2106085)
-
     private var likelyPlaceNames: Array<String?> = arrayOfNulls(0)
     private var likelyPlaceAddresses: Array<String?> = arrayOfNulls(0)
     private var likelyPlaceAttributions: Array<List<*>?> = arrayOfNulls(0)
     private var likelyPlaceLatLngs: Array<LatLng?> = arrayOfNulls(0)
-
     private var cameraPosition: CameraPosition? = null
-
     private var buttonState = true
     private var currentRouteId: Int = -1;
     private var currentPressure: Float = 0f;
@@ -85,8 +80,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     //easy image
     private lateinit var easyImage: EasyImage
-
-
 
     // sensor
     private var sensorViewModel: SensorViewModel? = null
@@ -102,8 +95,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var cameraPermissionGranted = false
 
     private var allPermissions = mutableListOf<String>()
-
-    private var imageFile:MediaFile? = null
 
     companion object {
         private val TAG = MapsActivity::class.java.simpleName
@@ -138,7 +129,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         //start map service
         val intent = Intent(this, MapService::class.java)
         startService(intent)
-
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
@@ -464,8 +454,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         })
 
 
-//        getStoragePermission()
-//        getAllPermissions()
+//      getStoragePermission()
+//      getAllPermissions()
 
         getLocationPermission()
 
