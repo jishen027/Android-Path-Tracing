@@ -20,7 +20,7 @@ class EditImageActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_edit)
+        setContentView(R.layout.activity_edit_image)
 
         daoObj = (this@EditImageActivity.application as TripTracker)
             .databaseObj.imageDataDao()
