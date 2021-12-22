@@ -17,6 +17,7 @@ import kotlinx.coroutines.*
 class ShowRouteActivity : AppCompatActivity() {
     val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var routeDao: RouteDataDao
+    lateinit var route: RouteData
 
     val startForResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
@@ -55,12 +56,12 @@ class ShowRouteActivity : AppCompatActivity() {
 
     private fun getRoute(id: Int) = runBlocking {
         GlobalScope.launch {
-            var route: RouteData = routeDao.getItem(id)
-            displayData(route)
+            route = routeDao.getItem(id)
+            displayData()
         }
     }
 
-    private fun displayData(route: RouteData){
+    private fun displayData(){
             val titleToolbar = findViewById<Toolbar>(R.id.show_toolbar)
             val descriptionTextView = findViewById<TextView>(R.id.show_route_description)
 
@@ -71,14 +72,14 @@ class ShowRouteActivity : AppCompatActivity() {
                 descriptionTextView.text = route.description
             }
 
-//            val fabEdit: FloatingActionButton = findViewById(R.id.fab_edit)
-//            fabEdit.setOnClickListener(View.OnClickListener {
-//                startForResult.launch(
-//                    Intent( this, EditImageActivity::class.java).apply {
-//                        putExtra("position", route.id)
-//                    }
-//                )
-//            })
+            val fabEdit: FloatingActionButton = findViewById(R.id.fab_edit)
+            fabEdit.setOnClickListener(View.OnClickListener {
+                startForResult.launch(
+                    Intent( this, EditRouteActivity::class.java).apply {
+                        putExtra("position", route.id)
+                    }
+                )
+            })
 
             val fabReturn: FloatingActionButton = findViewById(R.id.return_fab)
             fabReturn.setOnClickListener(View.OnClickListener {
