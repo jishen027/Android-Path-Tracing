@@ -2,13 +2,22 @@ plugins {
     id 'com.android.application'
     id 'kotlin-android'
     id 'kotlin-kapt'
+    id 'com.google.android.libraries.mapsplatform.secrets-gradle-plugin'
 }
 
 android {
+    signingConfigs {
+        debug {
+            storeFile file('/Users/khalillee/Documents/University Sheffield/MobileSoftwareDev/week08/keyStore.jks')
+            storePassword 'com4510iscool'
+            keyAlias 'com4510'
+            keyPassword 'com4510iscool'
+        }
+    }
     compileSdk 31
 
     defaultConfig {
-        applicationId "com.triptracker"
+        applicationId "uk.ac.shef.oak.com6510"
         minSdk 21
         targetSdk 31
         versionCode 1
@@ -82,7 +91,7 @@ dependencies {
     implementation "androidx.room:room-ktx:$room_version"
 
     // Activity Result API
-    implementation 'androidx.activity:activity-ktx:1.4.0-rc01'
+    implementation 'androidx.activity:activity-ktx:1.4.0'
     // google map
     implementation 'com.google.android.gms:play-services-maps:18.0.0'
     // Fragment API for Activity Result API

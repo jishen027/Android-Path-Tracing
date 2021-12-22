@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.triptracker">
+    package="uk.ac.shef.oak.com6510">
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -24,7 +24,7 @@
         tools:ignore="CoarseFineLocation" />
 
     <application
-        android:name="com.triptracker.activities.TripTracker"
+        android:name="uk.ac.shef.oak.com6510.activities.TripTracker"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -32,13 +32,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AndroidDevProj">
         <activity
-            android:name="com.triptracker.activities.GalleryActivity"
+            android:name="uk.ac.shef.oak.com6510.activities.GalleryActivity"
             android:exported="true" />
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="@string/google_maps_key" />
+            android:value="AIzaSyAQ4ZDGyQlHdzmY28GwFEG_JxtPFQ59sAU" />
         <activity
-            android:name="com.triptracker.activities.MapsActivity"
+            android:name="uk.ac.shef.oak.com6510.activities.MapsActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -46,21 +46,21 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.triptracker.activities.ShowImageActivity"
+            android:name="uk.ac.shef.oak.com6510.activities.ShowImageActivity"
             android:exported="true" />
         <activity
-            android:name="com.triptracker.activities.EditImageActivity"
+            android:name="uk.ac.shef.oak.com6510.activities.EditImageActivity"
             android:exported="true" />
         <activity
-            android:name="com.triptracker.activities.RoutesActivity"
+            android:name="uk.ac.shef.oak.com6510.activities.RoutesActivity"
             android:exported="true" />
         <activity
-            android:name="com.triptracker.activities.ShowRouteActivity"
+            android:name="uk.ac.shef.oak.com6510.activities.ShowRouteActivity"
             android:exported="true" />
         <activity
-            android:name="com.triptracker.activities.EditRouteActivity"
+            android:name="uk.ac.shef.oak.com6510.activities.EditRouteActivity"
             android:exported="true" />
-        <service android:name=".adaptors.MapService"
+        <service android:name="uk.ac.shef.oak.com6510.adaptors.MapService"
             android:exported="false"
             />
     </application>
