@@ -73,15 +73,11 @@ class GalleryActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_gallery)
-        //val toolbar: androidx.appcompat.widget.Toolbar = findViewById(R.id.toolbar)
-
         initData()
-        // Log.d("TAG", "message")
         mRecyclerView = findViewById(R.id.grid_recycler_view)
-        // set up the RecyclerView
         val numberOfColumns = 3
         mRecyclerView.layoutManager = GridLayoutManager(this, numberOfColumns)
-        mAdapter = GalleryAdapter(myDataset) as RecyclerView.Adapter<RecyclerView.ViewHolder>
+        mAdapter = GalleryAdapter(this, myDataset) as RecyclerView.Adapter<RecyclerView.ViewHolder>
         mRecyclerView.adapter = mAdapter
 
 
@@ -107,7 +103,6 @@ class GalleryActivity : AppCompatActivity() {
                 }
                 myDataset.clear()
                 myDataset.addAll(filteredValue)
-                Log.i("search", myDataset.toString())
                 mAdapter.notifyDataSetChanged()
                 return true
             }
@@ -136,12 +131,15 @@ class GalleryActivity : AppCompatActivity() {
         GlobalScope.launch {
             daoObj = (this@GalleryActivity.application as TripTracker)
                 .databaseObj.imageDataDao()
-
-            val receivedData = ArrayList<ImageData>()
-            receivedData.addAll(daoObj.getItems())
-            myDataset.addAll(receivedData)
-            allImages.addAll(receivedData)
+            loadData()
         }
+    }
+
+    private fun loadData() = runBlocking {
+        val receivedData = ArrayList<ImageData>()
+        receivedData.addAll(daoObj.getItems())
+        myDataset.addAll(receivedData)
+        allImages.addAll(receivedData)
     }
 
     /**

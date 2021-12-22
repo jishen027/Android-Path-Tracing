@@ -201,7 +201,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         })
 
         findViewById<FloatingActionButton>(R.id.addPhotoFab).setOnClickListener(View.OnClickListener {
-            easyImage.openChooser(this@MapsActivity)
+            easyImage.openCameraForImage(this)
         })
 
 

@@ -23,11 +23,7 @@ import kotlinx.coroutines.launch
 
 class GalleryAdapter : RecyclerView.Adapter<GalleryAdapter.ViewHolder>, Filterable  {
     private lateinit var context: Context
-    var tempImageData = items
-
-    constructor(items: MutableList<ImageData>): super() {
-        Companion.items = items as MutableList<ImageData>
-    }
+    lateinit var tempImageData: MutableList<ImageData>
 
     constructor(cont: Context, items: List<ImageData>) : super() {
         Companion.items = items as MutableList<ImageData>
@@ -58,6 +54,9 @@ class GalleryAdapter : RecyclerView.Adapter<GalleryAdapter.ViewHolder>, Filterab
                     }
                 }
             }
+        } else {
+            holder.imageTitle.text = items[position].imageTitle
+            holder.imageView.setImageBitmap(items[position].thumbnail)
         }
 
         holder.itemView.setOnClickListener(View.OnClickListener {
@@ -157,6 +156,7 @@ class GalleryAdapter : RecyclerView.Adapter<GalleryAdapter.ViewHolder>, Filterab
             }
 
             override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
+                tempImageData = items
                 tempImageData= results!!.values as ArrayList<ImageData>
                 notifyDataSetChanged()
             }
