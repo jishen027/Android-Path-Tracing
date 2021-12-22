@@ -4,14 +4,15 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Dialog
-import android.content.*
+import android.content.Context
+import android.content.DialogInterface
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.location.Location
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.IBinder
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -49,6 +50,7 @@ import java.util.*
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
+    private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
     private lateinit var placesClient: PlacesClient
     private lateinit var startRouteDialog: Dialog
@@ -106,7 +108,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     //background services
 
-    private var connection:ServiceConnection? = null
 
     private var serviceIntent: Intent? = null
 

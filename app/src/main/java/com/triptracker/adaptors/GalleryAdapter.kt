@@ -4,10 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Filter
+import android.widget.Filterable
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -20,8 +21,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-class GalleryAdapter : RecyclerView.Adapter<GalleryAdapter.ViewHolder> {
+class GalleryAdapter : RecyclerView.Adapter<GalleryAdapter.ViewHolder>, Filterable  {
     private lateinit var context: Context
+    var tempImageData = items
 
     constructor(items: MutableList<ImageData>): super() {
         Companion.items = items as MutableList<ImageData>
@@ -59,9 +61,6 @@ class GalleryAdapter : RecyclerView.Adapter<GalleryAdapter.ViewHolder> {
         }
 
         holder.itemView.setOnClickListener(View.OnClickListener {
-            // val intent = Intent(context, ShowImageActivity::class.java)
-            // intent.putExtra("position", position)
-            // context.startActivity(intent)
             val galleryActivityContext = context as GalleryActivity
             galleryActivityContext.startForResult.launch(
                 Intent(context, ShowImageActivity::class.java).apply {
@@ -136,6 +135,31 @@ class GalleryAdapter : RecyclerView.Adapter<GalleryAdapter.ViewHolder> {
             }
 
             return inSampleSize.toInt();
+        }
+    }
+
+    override fun getFilter(): Filter {
+        return object : Filter() {
+            override fun performFiltering(constraint: CharSequence?): FilterResults {
+                var filterlist= ArrayList<ImageData>()
+                if (constraint!!.isEmpty()) {
+                    filterlist = items as ArrayList<ImageData>
+                } else {
+                    items.forEach{ imageData ->
+                        if(imageData.imageTitle.lowercase().contains(constraint.toString().lowercase())) {
+                            filterlist.add(imageData)
+                        }
+                    }
+                }
+                var filterResults = FilterResults()
+                filterResults.values=filterlist
+                return filterResults
+            }
+
+            override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
+                tempImageData= results!!.values as ArrayList<ImageData>
+                notifyDataSetChanged()
+            }
         }
     }
 }

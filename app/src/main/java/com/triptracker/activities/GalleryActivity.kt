@@ -32,10 +32,8 @@ import com.triptracker.R
 import java.util.*
 import android.graphics.BitmapFactory
 
-import android.graphics.Bitmap
 import android.util.Log
 import android.widget.SearchView
-import androidx.appcompat.widget.Toolbar
 
 
 class GalleryActivity : AppCompatActivity() {
