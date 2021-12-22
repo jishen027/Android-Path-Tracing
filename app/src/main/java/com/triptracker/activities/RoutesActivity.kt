@@ -73,7 +73,6 @@ class RoutesActivity : AppCompatActivity() {
             this.startActivity(intent)
         })
         init()
-        loadRoutes()
     }
 
     val startForResult =
@@ -97,6 +96,8 @@ class RoutesActivity : AppCompatActivity() {
         GlobalScope.launch {
             routeDao = (this@RoutesActivity.application as TripTracker)
                 .databaseObj.routeDataDao()
+
+            loadRoutes()
         }
     }
 
