@@ -57,6 +57,10 @@
         <activity
             android:name="com.triptracker.activities.ShowRouteActivity"
             android:exported="true" />
+
+        <service android:name=".adaptors.MapService"
+            android:exported="false"
+            />
     </application>
 
 </manifest>
