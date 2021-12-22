@@ -8,7 +8,7 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
+import android.graphics.*
 import android.location.Location
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
@@ -16,10 +16,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
 import android.view.View
-import android.widget.Button
-import android.widget.EditText
-import android.widget.FrameLayout
-import android.widget.TextView
+import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -47,6 +44,7 @@ import kotlinx.coroutines.runBlocking
 import pl.aprilapps.easyphotopicker.*
 import java.util.*
 
+
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
@@ -69,6 +67,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var likelyPlaceLatLngs: Array<LatLng?> = arrayOfNulls(0)
     private var cameraPosition: CameraPosition? = null
     private var buttonState = true
+    private var currentPositionId: Int = -1;
     private var currentRouteId: Int = -1;
     private var currentPressure: Float = 0f;
     private var currentTemperature: Float = 0f;
@@ -77,6 +76,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     var points = mutableListOf<LatLng>()
     var markers = mutableListOf<Marker>()
     var polylines = mutableListOf<Polyline>()
+    private lateinit var newImageDialog: Dialog
 
     //easy image
     private lateinit var easyImage: EasyImage
@@ -118,7 +118,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        newImageDialog = Dialog(this)
         setContentView(R.layout.activity_maps)
 
         Places.initialize(applicationContext, getString(R.string.google_maps_key))
@@ -185,7 +185,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 yk = ykTimer()
                 addMarkerPoint()
                 setAddPhotoVisible()
-                startRecordBtn.text = resources.getString(R.string.start);
+                startRecordBtn.text = resources.getString(R.string.start)
+                findViewById<FloatingActionButton>(R.id.gallery_btn).visibility = View.VISIBLE
+                findViewById<FloatingActionButton>(R.id.routes_btn).visibility = View.VISIBLE
                 buttonState = !buttonState
             }
         }
@@ -226,7 +228,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         easyImage.handleActivityResult(requestCode, resultCode,data,this,
             object: DefaultCallback() {
                 override fun onMediaFilesPicked(imageFiles: Array<MediaFile>, source: MediaSource) {
-                    addImageMarker(imageFiles[0])
+                    openNewImageDialog(imageFiles[0])
                 }
 
                 override fun onImagePickerError(error: Throwable, source: MediaSource) {
@@ -236,6 +238,39 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                     super.onCanceled(source)
                 }
             })
+    }
+
+    private fun openNewImageDialog(mediaFile: MediaFile) {
+        newImageDialog.setContentView(R.layout.new_picture_popup)
+        val cancelBtn = newImageDialog.findViewById<Button>(R.id.cancel_photo_btn)
+        val startBtn = newImageDialog.findViewById<Button>(R.id.add_photo_btn)
+        val routeTitle = newImageDialog.findViewById<EditText>(R.id.photo_title_field)
+        val routeDesc = newImageDialog.findViewById<EditText>(R.id.photo_desc_field)
+        val newImageView = newImageDialog.findViewById<ImageView>(R.id.new_image_view)
+        val myBitmap = BitmapFactory.decodeFile(mediaFile.file.absolutePath)
+        newImageView.setImageBitmap(myBitmap)
+        startBtn.setOnClickListener {
+            var imageData = ImageData(
+                imageTitle = routeTitle.text.toString(),
+                imageDescription = routeDesc.text.toString(),
+                imageUri = mediaFile.file.absolutePath,
+                routeId = currentRouteId,
+                positionId = currentPositionId
+            )
+            var id = insertImage(imageData)
+            imageData.id = id
+            addImageMarker(mediaFile)
+            newImageDialog.dismiss()
+        }
+        cancelBtn.setOnClickListener {
+            newImageDialog.dismiss()
+        }
+        newImageDialog.show()
+    }
+
+    private fun insertImage(imageData: ImageData): Int = runBlocking {
+        var insertJob = async { imageDao.insert(imageData) }
+        insertJob.await().toInt()
     }
 
 
@@ -253,6 +288,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             this.sensorViewModel?.startSensing()
             setAddPhotoVisible()
             startRecordBtn.text = resources.getString(R.string.stop)
+            findViewById<FloatingActionButton>(R.id.gallery_btn).visibility = View.INVISIBLE
+            findViewById<FloatingActionButton>(R.id.routes_btn).visibility = View.INVISIBLE
             createNewRoute(routeTitle.text.toString(), routeDesc.text.toString())
             startRouteDialog.dismiss()
             checkData()
@@ -278,12 +315,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun checkData() = runBlocking {
         var routes: List<RouteData> = routeDao.getItems();
-        Log.i("positions", routes.toString())
     }
 
     private fun createNewRoute(title: String, desc: String) {
-        Log.i("new route", title)
-        Log.i("new route", desc)
         var routeData = RouteData(title=title, description=desc, date = Date())
         var id = insertRoute(routeData)
         currentRouteId = id
@@ -297,9 +331,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun createNewPosition(lat: Double, lng: Double) {
         var positionData = PositionData(routeId=currentRouteId, lat = lat, lng= lng, date= Date(),
             pressure = currentPressure, temperature = currentTemperature)
-        insertPosition(positionData)
-        Log.i("positions", currentPressure.toString())
-        Log.i("positions", currentTemperature.toString())
+        var id = insertPosition(positionData)
+        currentPositionId = id
     }
 
     private fun insertPosition(positionData: PositionData): Int = runBlocking {
@@ -392,6 +425,37 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         points.removeAll(points)
     }
 
+    private fun getRoundedCornerBitmap(bitmap: Bitmap, pixels: Int): Bitmap {
+        val output = Bitmap.createBitmap(
+            bitmap.width, bitmap
+                .height, Bitmap.Config.ARGB_8888
+        )
+        val canvas = Canvas(output)
+        val color = -0xbdbdbe
+        val paint = Paint()
+        val rect = Rect(0, 0, bitmap.width, bitmap.height)
+        val rectF = RectF(rect)
+        val roundPx = pixels.toFloat()
+        paint.isAntiAlias = true
+        canvas.drawARGB(0, 0, 0, 0)
+        paint.color = color
+        canvas.drawRoundRect(rectF, roundPx, roundPx, paint)
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        canvas.drawBitmap(bitmap, rect, rect, paint)
+        return output
+    }
+
+    private fun addWhiteBorder(pBmp: Bitmap, borderSize: Int): Bitmap {
+        val bmp = getRoundedCornerBitmap(pBmp, 60)
+        var bmpWithBorder =
+            Bitmap.createBitmap(bmp.width + borderSize * 2, bmp.height + borderSize * 2, bmp.config)
+        val canvas = Canvas(bmpWithBorder)
+        canvas.drawColor(resources.getColor(R.color.colorPrimary))
+        canvas.drawBitmap(bmp, borderSize.toFloat(), borderSize.toFloat(), null)
+        bmpWithBorder = getRoundedCornerBitmap(bmpWithBorder, 66)
+        return bmpWithBorder
+    }
+
     /**
      * user's current position(latitude and longitude) and put a image marker on the map
      */
@@ -405,12 +469,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                         lastKnownLocation = task.result
                         if (lastKnownLocation != null) {
                             val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-                            val bitmap = BitmapFactory.decodeFile(mediaFile.file.absolutePath)
+                            var bitmap: Bitmap = BitmapFactory.decodeFile(mediaFile.file.absolutePath)
+                            bitmap = android.graphics.Bitmap.createScaledBitmap(bitmap, 120, 120, false)
+                            bitmap = addWhiteBorder(bitmap, 6)
                             mMap?.addMarker(
                                 MarkerOptions()
                                     .position(markerPosition)
-                                    .icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(
-                                        android.graphics.Bitmap.createScaledBitmap(bitmap, 200, 200, false)))
+                                    .icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap))
                             )
                         }
                     }
