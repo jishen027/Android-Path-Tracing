@@ -6,6 +6,8 @@ import android.media.Image
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Filter
+import android.widget.Filterable
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.triptracker.R
@@ -13,10 +15,12 @@ import com.triptracker.activities.GalleryActivity
 import com.triptracker.activities.RoutesActivity
 import com.triptracker.activities.ShowImageActivity
 import com.triptracker.activities.ShowRouteActivity
+import com.triptracker.data.ImageData
+import java.util.ArrayList
 
-class RoutesAdaptor : RecyclerView.Adapter<RoutesAdaptor.ViewHolder> {
+class RoutesAdaptor : RecyclerView.Adapter<RoutesAdaptor.ViewHolder>, Filterable {
     private lateinit var context: Context
-    var items: MutableList<RouteElement>
+    private var items: MutableList<RouteElement> = ArrayList<RouteElement>()
 
     constructor(cont: Context, items: MutableList<RouteElement>) {
         this.items = items
@@ -56,5 +60,9 @@ class RoutesAdaptor : RecyclerView.Adapter<RoutesAdaptor.ViewHolder> {
         var title: TextView = itemView.findViewById<View>(R.id.route_list_title) as TextView
         var description: TextView = itemView.findViewById<View>(R.id.route_list_description) as TextView
 
+    }
+
+    override fun getFilter(): Filter {
+        TODO("Not yet implemented")
     }
 }

@@ -8,19 +8,15 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
+import android.graphics.*
 import android.location.Location
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
-import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.widget.Button
-import android.widget.EditText
-import android.widget.FrameLayout
-import android.widget.TextView
+import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -48,6 +44,7 @@ import kotlinx.coroutines.runBlocking
 import pl.aprilapps.easyphotopicker.*
 import java.util.*
 
+
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
@@ -62,19 +59,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // The Location Permission
     private var locationPermissionGranted = false
-
     private var lastKnownLocation: Location? = null
-
     private val defaultLocation = LatLng(-33.8523341, 151.2106085)
-
     private var likelyPlaceNames: Array<String?> = arrayOfNulls(0)
     private var likelyPlaceAddresses: Array<String?> = arrayOfNulls(0)
     private var likelyPlaceAttributions: Array<List<*>?> = arrayOfNulls(0)
     private var likelyPlaceLatLngs: Array<LatLng?> = arrayOfNulls(0)
-
     private var cameraPosition: CameraPosition? = null
-
     private var buttonState = true
+    private var currentPositionId: Int = -1;
     private var currentRouteId: Int = -1;
     private var currentPressure: Float = 0f;
     private var currentTemperature: Float = 0f;
@@ -83,11 +76,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     var points = mutableListOf<LatLng>()
     var markers = mutableListOf<Marker>()
     var polylines = mutableListOf<Polyline>()
+    private lateinit var newImageDialog: Dialog
 
     //easy image
     private lateinit var easyImage: EasyImage
-
-
 
     // sensor
     private var sensorViewModel: SensorViewModel? = null
@@ -103,13 +95,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var cameraPermissionGranted = false
 
     private var allPermissions = mutableListOf<String>()
-
-    private var imageFile:MediaFile? = null
-
-    //background services
-
-
-    private var serviceIntent: Intent? = null
 
 
     companion object {
@@ -148,34 +133,22 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Retrieve location and camera position from saved instance state
-        if (savedInstanceState != null) {
-            lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
-            cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION)
-        }
-
-        // Retrieve the content view that renders the map
+        newImageDialog = Dialog(this)
         setContentView(R.layout.activity_maps)
 
-        //Construct a PlacesClient
         Places.initialize(applicationContext, getString(R.string.google_maps_key))
         placesClient = Places.createClient(this)
 
-        //Construct a FusedLocationProviderClient
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+
+        //start map service
+        val intent = Intent(this, MapService::class.java)
+        startService(intent)
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
-
-        setActivity(this)
-
-        //start map service
-        serviceIntent = Intent(this, MapService::class.java)
-
-        startService(serviceIntent)
 
 
         // Sensor activities
@@ -199,7 +172,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         )
 
-
+        if (savedInstanceState != null) {
+            lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
+            cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION)
+        }
         // Activities for buttons =============================================================
 
         /**
@@ -210,7 +186,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 addPolyLine()
             }
         }
-
+        yk = ykTimer()
         startRecordBtn = findViewById<Button>(R.id.start_record)
         startRecordBtn.setOnClickListener(){
             if(buttonState) {
@@ -218,13 +194,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 yk = ykTimer()
                 openStartRouteDialog()
             } else {
+                stopService(intent)
                 this.sensorViewModel?.stopSensing()
                 yk.cancel()
                 yk = ykTimer()
                 addMarkerPoint()
-                Log.i("stopbtn", " stop recording")
                 setAddPhotoVisible()
-                startRecordBtn.text = resources.getString(R.string.start);
+                startRecordBtn.text = resources.getString(R.string.start)
+                findViewById<FloatingActionButton>(R.id.gallery_btn).visibility = View.VISIBLE
+                findViewById<FloatingActionButton>(R.id.routes_btn).visibility = View.VISIBLE
                 buttonState = !buttonState
             }
         }
@@ -240,47 +218,287 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         })
 
         findViewById<FloatingActionButton>(R.id.addPhotoFab).setOnClickListener(View.OnClickListener {
-            easyImage.openChooser(this@MapsActivity)
+            easyImage.openCameraForImage(this)
         })
 
 
         //end of  activities for buttons =============================================================
         initData();
 
-        initEasyImage()
     }
 
     /**
-     * Saves the state of the map when the activity is paused.
+     *initialises EasyImage
      */
-    override fun onSaveInstanceState(outState: Bundle) {
-        mMap?.let { map ->
-            outState.putParcelable(KEY_CAMERA_POSITION, map.cameraPosition)
-            outState.putParcelable(KEY_LOCATION, lastKnownLocation)
+    private fun initEasyImage(){
+        easyImage = EasyImage.Builder(this)
+            .setChooserType(ChooserType.CAMERA_AND_GALLERY)
+            .build()
+    }
+
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        easyImage.handleActivityResult(requestCode, resultCode,data,this,
+            object: DefaultCallback() {
+                override fun onMediaFilesPicked(imageFiles: Array<MediaFile>, source: MediaSource) {
+                    openNewImageDialog(imageFiles[0])
+                }
+
+                override fun onImagePickerError(error: Throwable, source: MediaSource) {
+                    super.onImagePickerError(error, source)
+                }
+                override fun onCanceled(source: MediaSource) {
+                    super.onCanceled(source)
+                }
+            })
+    }
+
+    private fun openNewImageDialog(mediaFile: MediaFile) {
+        newImageDialog.setContentView(R.layout.new_picture_popup)
+        val cancelBtn = newImageDialog.findViewById<Button>(R.id.cancel_photo_btn)
+        val startBtn = newImageDialog.findViewById<Button>(R.id.add_photo_btn)
+        val routeTitle = newImageDialog.findViewById<EditText>(R.id.photo_title_field)
+        val routeDesc = newImageDialog.findViewById<EditText>(R.id.photo_desc_field)
+        val newImageView = newImageDialog.findViewById<ImageView>(R.id.new_image_view)
+        val myBitmap = BitmapFactory.decodeFile(mediaFile.file.absolutePath)
+        newImageView.setImageBitmap(myBitmap)
+        startBtn.setOnClickListener {
+            var imageData = ImageData(
+                imageTitle = routeTitle.text.toString(),
+                imageDescription = routeDesc.text.toString(),
+                imageUri = mediaFile.file.absolutePath,
+                routeId = currentRouteId,
+                positionId = currentPositionId
+            )
+            var id = insertImage(imageData)
+            imageData.id = id
+            addImageMarker(mediaFile)
+            newImageDialog.dismiss()
         }
-        super.onSaveInstanceState(outState)
-    }
-
-    /**
-     * Sets up the options menu.
-     * @param menu The options menu.
-     * @return Boolean.
-     */
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.current_place_menu, menu)
-        return true
-    }
-
-    /**
-     * Handles a click on the menu option to get a place.
-     * @param item The menu item to handle.
-     * @return Boolean.
-     */
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.option_get_place) {
-            showCurrentPlace()
+        cancelBtn.setOnClickListener {
+            newImageDialog.dismiss()
         }
-        return true
+        newImageDialog.show()
+    }
+
+    private fun insertImage(imageData: ImageData): Int = runBlocking {
+        var insertJob = async { imageDao.insert(imageData) }
+        insertJob.await().toInt()
+    }
+
+
+    private fun openStartRouteDialog() {
+        startRouteDialog = Dialog(this)
+        startRouteDialog.setContentView(R.layout.new_route_popup)
+        val cancelBtn = startRouteDialog.findViewById<Button>(R.id.cancel_routing_btn)
+        val startBtn = startRouteDialog.findViewById<Button>(R.id.start_routing_btn)
+        val routeTitle = startRouteDialog.findViewById<EditText>(R.id.route_title_field)
+        val routeDesc = startRouteDialog.findViewById<EditText>(R.id.route_title_desc)
+
+        startBtn.setOnClickListener {
+            Timer().schedule(yk, Date(), 5000)
+            addMarkerPoint()
+            this.sensorViewModel?.startSensing()
+            setAddPhotoVisible()
+            startRecordBtn.text = resources.getString(R.string.stop)
+            findViewById<FloatingActionButton>(R.id.gallery_btn).visibility = View.INVISIBLE
+            findViewById<FloatingActionButton>(R.id.routes_btn).visibility = View.INVISIBLE
+            createNewRoute(routeTitle.text.toString(), routeDesc.text.toString())
+            startRouteDialog.dismiss()
+            checkData()
+            buttonState = !buttonState
+        }
+        cancelBtn.setOnClickListener {
+            startRouteDialog.dismiss()
+        }
+        startRouteDialog.show()
+    }
+
+    private fun initData() {
+        GlobalScope.launch {
+            routeDao = (this@MapsActivity.application as TripTracker)
+                .databaseObj.routeDataDao()
+            positionDao = (this@MapsActivity.application as TripTracker)
+                .databaseObj.positionData()
+            imageDao = (this@MapsActivity.application as TripTracker)
+                .databaseObj.imageDataDao()
+
+        }
+    }
+
+    private fun checkData() = runBlocking {
+        var routes: List<RouteData> = routeDao.getItems();
+    }
+
+    private fun createNewRoute(title: String, desc: String) {
+        var routeData = RouteData(title=title, description=desc, date = Date())
+        var id = insertRoute(routeData)
+        currentRouteId = id
+    }
+
+    private fun insertRoute(routeDate: RouteData): Int = runBlocking {
+        var insertJob = async { routeDao.insert(routeDate) }
+        insertJob.await().toInt()
+    }
+
+    private fun createNewPosition(lat: Double, lng: Double) {
+        var positionData = PositionData(routeId=currentRouteId, lat = lat, lng= lng, date= Date(),
+            pressure = currentPressure, temperature = currentTemperature)
+        var id = insertPosition(positionData)
+        currentPositionId = id
+    }
+
+    private fun insertPosition(positionData: PositionData): Int = runBlocking {
+        var insertJob = async { positionDao.insert(positionData) }
+        insertJob.await().toInt()
+    }
+    /**
+     * addMarkerPoint() will get user's current position(latitude and longitude) and put a marker on the map
+     *
+     * */
+    private fun addMarkerPoint(){
+        try {
+            if (locationPermissionGranted) {
+                val locationResult = fusedLocationProviderClient.lastLocation
+                locationResult.addOnCompleteListener(this) { task ->
+                    if (task.isSuccessful) {
+                        // Set the map's camera position to the current location of the device.
+                        lastKnownLocation = task.result
+                        if (lastKnownLocation != null) {
+                            val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
+                            var marker = mMap?.addMarker(
+                                MarkerOptions()
+                                    .position(markerPosition)
+                            )
+                            points.add(markerPosition)
+                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
+                            if (marker != null) {
+                                markers.add(marker)
+                            }
+                        }
+                    } else {
+                        Log.d(TAG, "Current location is null. Using defaults.")
+                        Log.e(TAG, "Exception: %s", task.exception)
+                        mMap?.moveCamera(CameraUpdateFactory
+                            .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat()))
+                        mMap?.uiSettings?.isMyLocationButtonEnabled = false
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e("Exception: %s", e.message, e)
+        }
+    }
+    /***
+     * get current position and insert the position to the latlng list then draw a ployline on the map
+     */
+    private fun addPolyLine(){
+        try {
+            if (locationPermissionGranted) {
+                val locationResult = fusedLocationProviderClient.lastLocation
+                locationResult.addOnCompleteListener(this) { task ->
+                    if (task.isSuccessful) {
+                        // Set the map's camera position to the current location of the device.
+                        lastKnownLocation = task.result
+                        if (lastKnownLocation != null) {
+                            val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
+                            points.add(markerPosition)
+                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
+                            val polylineOptions = PolylineOptions().addAll(points)
+                            var polyline =  mMap.addPolyline(polylineOptions)
+                            polylines.add(polyline)
+                        }
+                    } else {
+                        Log.d(TAG, "Current location is null. Using defaults.")
+                        Log.e(TAG, "Exception: %s", task.exception)
+                        mMap?.moveCamera(CameraUpdateFactory
+                            .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat()))
+                        mMap?.uiSettings?.isMyLocationButtonEnabled = false
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e("Exception: %s", e.message, e)
+        }
+    }
+
+
+    /**
+     * remove all markers and polyline on the map
+     */
+    private fun cleanMap(){
+        for (marker in markers){
+            marker.remove()
+        }
+
+        for(polyline in polylines){
+            polyline.remove()
+        }
+        markers.removeAll(markers)
+        points.removeAll(points)
+    }
+
+    private fun getRoundedCornerBitmap(bitmap: Bitmap, pixels: Int): Bitmap {
+        val output = Bitmap.createBitmap(
+            bitmap.width, bitmap
+                .height, Bitmap.Config.ARGB_8888
+        )
+        val canvas = Canvas(output)
+        val color = -0xbdbdbe
+        val paint = Paint()
+        val rect = Rect(0, 0, bitmap.width, bitmap.height)
+        val rectF = RectF(rect)
+        val roundPx = pixels.toFloat()
+        paint.isAntiAlias = true
+        canvas.drawARGB(0, 0, 0, 0)
+        paint.color = color
+        canvas.drawRoundRect(rectF, roundPx, roundPx, paint)
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        canvas.drawBitmap(bitmap, rect, rect, paint)
+        return output
+    }
+
+    private fun addWhiteBorder(pBmp: Bitmap, borderSize: Int): Bitmap {
+        val bmp = getRoundedCornerBitmap(pBmp, 60)
+        var bmpWithBorder =
+            Bitmap.createBitmap(bmp.width + borderSize * 2, bmp.height + borderSize * 2, bmp.config)
+        val canvas = Canvas(bmpWithBorder)
+        canvas.drawColor(resources.getColor(R.color.colorPrimary))
+        canvas.drawBitmap(bmp, borderSize.toFloat(), borderSize.toFloat(), null)
+        bmpWithBorder = getRoundedCornerBitmap(bmpWithBorder, 66)
+        return bmpWithBorder
+    }
+
+    /**
+     * user's current position(latitude and longitude) and put a image marker on the map
+     */
+    private fun addImageMarker(mediaFile: MediaFile){
+        try {
+            if (locationPermissionGranted) {
+                val locationResult = fusedLocationProviderClient.lastLocation
+                locationResult.addOnCompleteListener(this) { task ->
+                    if (task.isSuccessful) {
+                        // Set the map's camera position to the current location of the device.
+                        lastKnownLocation = task.result
+                        if (lastKnownLocation != null) {
+                            val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
+                            var bitmap: Bitmap = BitmapFactory.decodeFile(mediaFile.file.absolutePath)
+                            bitmap = android.graphics.Bitmap.createScaledBitmap(bitmap, 120, 120, false)
+                            bitmap = addWhiteBorder(bitmap, 6)
+                            mMap?.addMarker(
+                                MarkerOptions()
+                                    .position(markerPosition)
+                                    .icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap))
+                            )
+                        }
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e("Exception: %s", e.message, e)
+        }
     }
 
     /**
@@ -294,9 +512,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
      */
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+
         // Use a custom info window adapter to handle multiple lines of text in the
         // info window contents.
-        mMap?.setInfoWindowAdapter(object : GoogleMap.InfoWindowAdapter {
+        this.mMap?.setInfoWindowAdapter(object : GoogleMap.InfoWindowAdapter {
             // Return null here, so that getInfoContents() is called next.
             override fun getInfoWindow(arg0: Marker): View? {
                 return null
@@ -314,6 +533,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         })
 
+
+//      getStoragePermission()
+//      getAllPermissions()
+
         getLocationPermission()
 
         // Turn on the My Location layer and the related control on the map.
@@ -321,11 +544,100 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation()
+
+        initEasyImage()
+
     }
 
-    /**
-     * Gets the current location of the device, and positions the map's camera.
-     */
+    private fun getStoragePermission(){
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
+            readStoragePermissionGranted = true
+        }else{
+            allPermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
+            writeStoragePermissionGranted = true
+        }else{
+            allPermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED){
+            cameraPermissionGranted = true
+        }else{
+            allPermissions.add(Manifest.permission.CAMERA)
+        }
+        if(allPermissions.isNotEmpty()){
+            ActivityCompat.requestPermissions(this, allPermissions.toTypedArray(), ALL_PERMISSIONS)
+        }
+    }
+
+    private fun getLocationPermission(){
+        /*
+        * Request location permission, so that we can get the location of the
+        * device. The result of the permission request is handled by a callback,
+        * onRequestPermissionsResult.
+        */
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ){
+            locationPermissionGranted = true
+        }else{
+//            allPermissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
+        }
+    }
+
+//    private fun getAllPermissions(){
+//        if(allPermissions.isNotEmpty()){
+//            ActivityCompat.requestPermissions(this, allPermissions.toTypedArray(), ALL_PERMISSIONS)
+//        }
+//    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        locationPermissionGranted = false
+        when(requestCode){
+            PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                    locationPermissionGranted = true
+                }
+            }
+
+//            ALL_PERMISSIONS -> {
+//                if(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+//                    readStoragePermissionGranted = true
+//                    writeStoragePermissionGranted = true
+//                    cameraPermissionGranted = true
+//                }
+//            }
+        }
+        updateLocationUI()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun updateLocationUI(){
+        if(mMap == null){
+            return
+        }
+        try {
+            if(locationPermissionGranted){
+                mMap?.isMyLocationEnabled = true
+                mMap?.uiSettings?.isMyLocationButtonEnabled = true
+            }else{
+                mMap?.isMyLocationEnabled = false
+                mMap?.uiSettings?.isMyLocationButtonEnabled = false
+                lastKnownLocation = null
+                getLocationPermission()
+            }
+        }catch (e: SecurityException){
+            Log.e("Exception: %s", e.message, e)
+        }
+    }
+
     @SuppressLint("MissingPermission")
     private fun getDeviceLocation(){
         /*
@@ -359,50 +671,21 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    /**
-     * Prompts the user for permission to use the device location.
-     */
-    private fun getLocationPermission(){
-        /*
-        * Request location permission, so that we can get the location of the
-        * device. The result of the permission request is handled by a callback,
-        * onRequestPermissionsResult.
-        */
-        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ){
-            locationPermissionGranted = true
-        }else{
-//            allPermissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.option_get_place) {
+            showCurrentPlace()
+        }
+        return true
+    }
+
+    private fun setAddPhotoVisible() {
+        if (findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility == View.VISIBLE) {
+            findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility = View.INVISIBLE
+        } else {
+            findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility = View.VISIBLE
         }
     }
 
-    /**
-     * Handles the result of the request for location permissions.
-     */
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        locationPermissionGranted = false
-        when(requestCode){
-            PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
-                    locationPermissionGranted = true
-                }
-            }
-
-        }
-        updateLocationUI()
-    }
-
-
-    /**
-     * Prompts the user to select the current place from a list of likely places, and shows the
-     * current place on the map - provided the user has granted location permission.
-     */
     @SuppressLint("MissingPermission")
     private fun showCurrentPlace() {
         if (mMap == null) {
@@ -467,9 +750,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    /**
-     * Displays a form allowing the user to select a place from a list of likely places.
-     */
     private fun openPlacesDialog() {
         // Ask the user to choose the place where they are now.
         val listener = DialogInterface.OnClickListener { dialog, which -> // The "which" argument contains the position of the selected item.
@@ -505,321 +785,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             .show()
     }
 
-    /**
-     * Updates the map's UI settings based on whether the user has granted location permission.
-     */
-    @SuppressLint("MissingPermission")
-    private fun updateLocationUI(){
-        if(mMap == null){
-            return
+    override fun onSaveInstanceState(outState: Bundle) {
+        mMap?.let { map ->
+            outState.putParcelable(KEY_CAMERA_POSITION, map.cameraPosition)
+            outState.putParcelable(KEY_LOCATION, lastKnownLocation)
         }
-        try {
-            if(locationPermissionGranted){
-                mMap?.isMyLocationEnabled = true
-                mMap?.uiSettings?.isMyLocationButtonEnabled = true
-            }else{
-                mMap?.isMyLocationEnabled = false
-                mMap?.uiSettings?.isMyLocationButtonEnabled = false
-                lastKnownLocation = null
-                getLocationPermission()
-            }
-        }catch (e: SecurityException){
-            Log.e("Exception: %s", e.message, e)
-        }
+        super.onSaveInstanceState(outState)
     }
-
-
-    override fun onDestroy() {
-        super.onDestroy()
-        stopService(serviceIntent)
-    }
-
-
-
-    /**
-     *initialises EasyImage
-     */
-    private fun initEasyImage(){
-        easyImage = EasyImage.Builder(this)
-            .setChooserType(ChooserType.CAMERA_AND_GALLERY)
-            .build()
-    }
-
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        easyImage.handleActivityResult(requestCode, resultCode,data,this,
-            object: DefaultCallback() {
-                override fun onMediaFilesPicked(imageFiles: Array<MediaFile>, source: MediaSource) {
-                    addImageMarker(imageFiles[0])
-                }
-
-                override fun onImagePickerError(error: Throwable, source: MediaSource) {
-                    super.onImagePickerError(error, source)
-                }
-                override fun onCanceled(source: MediaSource) {
-                    super.onCanceled(source)
-                }
-            })
-    }
-
-
-    private fun openStartRouteDialog() {
-        startRouteDialog = Dialog(this)
-        startRouteDialog.setContentView(R.layout.new_route_popup)
-        val cancelBtn = startRouteDialog.findViewById<Button>(R.id.cancel_routing_btn)
-        val startBtn = startRouteDialog.findViewById<Button>(R.id.start_routing_btn)
-        val routeTitle = startRouteDialog.findViewById<EditText>(R.id.route_title_field)
-        val routeDesc = startRouteDialog.findViewById<EditText>(R.id.route_title_desc)
-
-        startBtn.setOnClickListener {
-            Timer().schedule(yk, Date(), 5000)
-            addMarkerPoint()
-            this.sensorViewModel?.startSensing()
-            setAddPhotoVisible()
-            startRecordBtn.text = resources.getString(R.string.stop)
-            createNewRoute(routeTitle.text.toString(), routeDesc.text.toString())
-            startRouteDialog.dismiss()
-            checkData()
-            buttonState = !buttonState
-        }
-        cancelBtn.setOnClickListener {
-            startRouteDialog.dismiss()
-        }
-        startRouteDialog.show()
-    }
-
-    private fun initData() {
-        GlobalScope.launch {
-            routeDao = (this@MapsActivity.application as TripTracker)
-                .databaseObj.routeDataDao()
-            positionDao = (this@MapsActivity.application as TripTracker)
-                .databaseObj.positionData()
-            imageDao = (this@MapsActivity.application as TripTracker)
-                .databaseObj.imageDataDao()
-
-        }
-    }
-
-    private fun checkData() = runBlocking {
-        var routes: List<RouteData> = routeDao.getItems();
-        Log.i("positions", routes.toString())
-    }
-
-    private fun createNewRoute(title: String, desc: String) {
-        Log.i("new route", title)
-        Log.i("new route", desc)
-        var routeData = RouteData(title=title, description=desc, date = Date())
-        var id = insertRoute(routeData)
-        currentRouteId = id
-    }
-
-    private fun insertRoute(routeDate: RouteData): Int = runBlocking {
-        var insertJob = async { routeDao.insert(routeDate) }
-        insertJob.await().toInt()
-    }
-
-    private fun createNewPosition(lat: Double, lng: Double) {
-        var positionData = PositionData(routeId=currentRouteId, lat = lat, lng= lng, date= Date(),
-            pressure = currentPressure, temperature = currentTemperature)
-        insertPosition(positionData)
-        Log.i("positions", currentPressure.toString())
-        Log.i("positions", currentTemperature.toString())
-    }
-
-    private fun insertPosition(positionData: PositionData): Int = runBlocking {
-        var insertJob = async { positionDao.insert(positionData) }
-        insertJob.await().toInt()
-    }
-
-    private fun createImage(mediaFile: MediaFile){
-        var imageData = ImageData(
-            imageTitle = "",
-            imageDescription = "",
-            imageUri = mediaFile.file.absolutePath
-        )
-        var id = insertImage(imageData)
-        Log.i("image data", mediaFile.file.absolutePath)
-    }
-
-    private fun insertImage(imageData: ImageData):Int = runBlocking{
-        var insertJob = async { imageDao.insert(imageData) }
-        insertJob.await().toInt()
-    }
-
-    /**
-     * addMarkerPoint() will get user's current position(latitude and longitude) and put a marker on the map
-     *
-     * */
-    private fun addMarkerPoint(){
-        try {
-            if (locationPermissionGranted) {
-                val locationResult = fusedLocationProviderClient.lastLocation
-                locationResult.addOnCompleteListener(this) { task ->
-                    if (task.isSuccessful) {
-                        // Set the map's camera position to the current location of the device.
-                        lastKnownLocation = task.result
-                        if (lastKnownLocation != null) {
-                            val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-                                var marker = mMap?.addMarker(
-                                    MarkerOptions()
-                                        .position(markerPosition)
-                                )
-                            points.add(markerPosition)
-                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
-                            if (marker != null) {
-                                markers.add(marker)
-                            }
-                        }
-                    } else {
-                        Log.d(TAG, "Current location is null. Using defaults.")
-                        Log.e(TAG, "Exception: %s", task.exception)
-                        mMap?.moveCamera(CameraUpdateFactory
-                            .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat()))
-                        mMap?.uiSettings?.isMyLocationButtonEnabled = false
-                    }
-                }
-            }
-        } catch (e: SecurityException) {
-            Log.e("Exception: %s", e.message, e)
-        }
-    }
-    /***
-     * get current position and insert the position to the latlng list then draw a ployline on the map
-     */
-    private fun addPolyLine(){
-        try {
-            if (locationPermissionGranted) {
-                val locationResult = fusedLocationProviderClient.lastLocation
-                locationResult.addOnCompleteListener(this) { task ->
-                    if (task.isSuccessful) {
-                        // Set the map's camera position to the current location of the device.
-                        lastKnownLocation = task.result
-                        if (lastKnownLocation != null) {
-                            val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-                            points.add(markerPosition)
-                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
-                            val polylineOptions = PolylineOptions().addAll(points)
-                            var polyline =  mMap.addPolyline(polylineOptions)
-                            polylines.add(polyline)
-                        }
-                    } else {
-                        Log.d(TAG, "Current location is null. Using defaults.")
-                        Log.e(TAG, "Exception: %s", task.exception)
-                        mMap?.moveCamera(CameraUpdateFactory
-                            .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat()))
-                        mMap?.uiSettings?.isMyLocationButtonEnabled = false
-                    }
-                }
-            }
-        } catch (e: SecurityException) {
-            Log.e("Exception: %s", e.message, e)
-        }
-    }
-
-    /**
-     * remove all markers and polyline on the map
-     */
-    private fun cleanMap(){
-        for (marker in markers){
-            marker.remove()
-        }
-
-        for(polyline in polylines){
-            polyline.remove()
-        }
-        markers.removeAll(markers)
-        points.removeAll(points)
-    }
-
-    /**
-     * user's current position(latitude and longitude) and put a image marker on the map
-     */
-    private fun addImageMarker(mediaFile: MediaFile){
-        try {
-            if (locationPermissionGranted) {
-                val locationResult = fusedLocationProviderClient.lastLocation
-                locationResult.addOnCompleteListener(this) { task ->
-                    if (task.isSuccessful) {
-                        // Set the map's camera position to the current location of the device.
-                        lastKnownLocation = task.result
-                        if (lastKnownLocation != null) {
-                            val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-                            val bitmap = BitmapFactory.decodeFile(mediaFile.file.absolutePath)
-                            var marker = mMap?.addMarker(
-                                MarkerOptions()
-                                    .position(markerPosition)
-                                    .icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(
-                                        android.graphics.Bitmap.createScaledBitmap(bitmap, 200, 200, false)))
-                            )
-                            points.add(markerPosition)
-                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
-                            createImage(mediaFile)
-                            if (marker != null) {
-                                markers.add(marker)
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (e: SecurityException) {
-            Log.e("Exception: %s", e.message, e)
-        }
-    }
-
-
-
-    private fun getStoragePermission(){
-        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
-            readStoragePermissionGranted = true
-        }else{
-            allPermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-
-        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
-            writeStoragePermissionGranted = true
-        }else{
-            allPermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }
-
-        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED){
-            cameraPermissionGranted = true
-        }else{
-            allPermissions.add(Manifest.permission.CAMERA)
-        }
-        if(allPermissions.isNotEmpty()){
-            ActivityCompat.requestPermissions(this, allPermissions.toTypedArray(), ALL_PERMISSIONS)
-        }
-    }
-
-
-
-//    private fun getAllPermissions(){
-//        if(allPermissions.isNotEmpty()){
-//            ActivityCompat.requestPermissions(this, allPermissions.toTypedArray(), ALL_PERMISSIONS)
-//        }
-//    }
-
-
-
-
-
-
-
-
-    private fun setAddPhotoVisible() {
-        if (findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility == View.VISIBLE) {
-            findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility = View.INVISIBLE
-        } else {
-            findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility = View.VISIBLE
-        }
-    }
-
-
-
-
-
-
 
 }
