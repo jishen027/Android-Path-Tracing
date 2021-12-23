@@ -15,6 +15,9 @@ interface PositionDataDao {
     @Query("SELECT * from position WHERE id = :id")
     fun getItem(id: Int): PositionData
 
+    @Query("SELECT * from position WHERE routeId = :routeId")
+    fun getPositionsOfRoute(routeId: Int): List<PositionData>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(singlePositionData: PositionData): Long
 

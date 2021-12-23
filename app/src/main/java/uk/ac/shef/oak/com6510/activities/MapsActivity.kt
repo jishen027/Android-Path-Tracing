@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.*
 import android.location.Location
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
@@ -49,7 +50,6 @@ import java.util.*
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
-    private var serviceIntent: Intent? = null
     private lateinit var binding: ActivityMapsBinding
     private lateinit var placesClient: PlacesClient
     private lateinit var startRouteDialog: Dialog
@@ -69,10 +69,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var likelyPlaceLatLngs: Array<LatLng?> = arrayOfNulls(0)
     private var cameraPosition: CameraPosition? = null
     private var buttonState = true
-    private var currentPositionId: Int = -1;
-    private var currentRouteId: Int = -1;
-    private var currentPressure: Float = 0f;
-    private var currentTemperature: Float = 0f;
+
 
     private lateinit var newImageDialog: Dialog
 
@@ -82,10 +79,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     // sensor
     private var sensorViewModel: SensorViewModel? = null
 
-    //dao
-    private lateinit var positionDao: PositionDataDao
-    private lateinit var routeDao: RouteDataDao
-    private lateinit var imageDao: ImageDataDao
+
 
     //Storage permission
     private var readStoragePermissionGranted = false
@@ -130,6 +124,50 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         var points = mutableListOf<LatLng>()
         var markers = mutableListOf<Marker>()
         var polylines = mutableListOf<Polyline>()
+
+        //dao
+        private lateinit var positionDao: PositionDataDao
+        private lateinit var routeDao: RouteDataDao
+        private lateinit var imageDao: ImageDataDao
+
+        //
+        private var currentPositionId: Int = -1;
+        private var currentRouteId: Int = -1;
+        private var currentPressure: Float = 0f;
+        private var currentTemperature: Float = 0f;
+
+        private fun checkData() = runBlocking {
+            var routes: List<RouteData> = routeDao.getItems();
+        }
+
+        fun createNewRoute(title: String, desc: String) {
+            var routeData = RouteData(title=title, description=desc, date = Date())
+            var id = insertRoute(routeData)
+            currentRouteId = id
+        }
+
+        fun insertRoute(routeDate: RouteData): Int = runBlocking {
+            var insertJob = async { routeDao.insert(routeDate) }
+            insertJob.await().toInt()
+        }
+
+        fun createNewPosition(lat: Double, lng: Double) {
+            var positionData = PositionData(routeId=currentRouteId, lat = lat, lng= lng, date= Date(),
+                pressure = currentPressure, temperature = currentTemperature)
+            var id = insertPosition(positionData)
+            currentPositionId = id
+        }
+
+        fun insertPosition(positionData: PositionData): Int = runBlocking {
+            var insertJob = async { positionDao.insert(positionData) }
+            insertJob.await().toInt()
+        }
+
+        fun insertImage(imageData: ImageData): Int = runBlocking {
+            var insertJob = async { imageDao.insert(imageData) }
+            insertJob.await().toInt()
+        }
+
     }
 
 
@@ -205,11 +243,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 yk = ykTimer()
                 openStartRouteDialog()
             } else {
-                serviceIntent = Intent(applicationContext, MapService::class.java)
+                var serviceIntent = Intent(this, MapService::class.java)
                 stopService(serviceIntent)
                 this.sensorViewModel?.stopSensing()
-                yk.cancel()
-                yk = ykTimer()
+
                 addMarkerPoint()
                 setAddPhotoVisible()
                 startRecordBtn.text = resources.getString(R.string.start)
@@ -242,6 +279,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
+
+
     /**
      * Saves the state of the map when the activity is paused.
      */
@@ -252,13 +291,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         super.onSaveInstanceState(outState)
     }
-
-//    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-//        if (item.itemId == R.id.option_get_place) {
-//            showCurrentPlace()
-//        }
-//        return true
-//    }
 
 
     /**
@@ -414,6 +446,19 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
+    private fun initData() {
+        GlobalScope.launch {
+            routeDao = (this@MapsActivity.application as TripTracker)
+                .databaseObj.routeDataDao()
+            positionDao = (this@MapsActivity.application as TripTracker)
+                .databaseObj.positionData()
+            imageDao = (this@MapsActivity.application as TripTracker)
+                .databaseObj.imageDataDao()
+
+        }
+    }
+
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
@@ -473,7 +518,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         startBtn.setOnClickListener {
 //            Timer().schedule(yk, Date(), 20000)
             addMarkerPoint()
-            serviceIntent = Intent(applicationContext, MapService::class.java)
+            var serviceIntent = Intent(this, MapService::class.java)
+
+            if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.O){
+                startForegroundService(serviceIntent)
+            }else{
+                startService(serviceIntent)
+            }
+
+
             startService(serviceIntent)
             this.sensorViewModel?.startSensing()
             setAddPhotoVisible()
@@ -491,49 +544,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         startRouteDialog.show()
     }
 
-    private fun initData() {
-        GlobalScope.launch {
-            routeDao = (this@MapsActivity.application as TripTracker)
-                .databaseObj.routeDataDao()
-            positionDao = (this@MapsActivity.application as TripTracker)
-                .databaseObj.positionData()
-            imageDao = (this@MapsActivity.application as TripTracker)
-                .databaseObj.imageDataDao()
-
-        }
-    }
-
-    private fun checkData() = runBlocking {
-        var routes: List<RouteData> = routeDao.getItems();
-    }
-
-    private fun createNewRoute(title: String, desc: String) {
-        var routeData = RouteData(title=title, description=desc, date = Date())
-        var id = insertRoute(routeData)
-        currentRouteId = id
-    }
-
-    private fun insertRoute(routeDate: RouteData): Int = runBlocking {
-        var insertJob = async { routeDao.insert(routeDate) }
-        insertJob.await().toInt()
-    }
-
-    private fun createNewPosition(lat: Double, lng: Double) {
-        var positionData = PositionData(routeId=currentRouteId, lat = lat, lng= lng, date= Date(),
-            pressure = currentPressure, temperature = currentTemperature)
-        var id = insertPosition(positionData)
-        currentPositionId = id
-    }
-
-    private fun insertPosition(positionData: PositionData): Int = runBlocking {
-        var insertJob = async { positionDao.insert(positionData) }
-        insertJob.await().toInt()
-    }
-
-    private fun insertImage(imageData: ImageData): Int = runBlocking {
-        var insertJob = async { imageDao.insert(imageData) }
-        insertJob.await().toInt()
-    }
 
     /**
      * addMarkerPoint() will get user's current position(latitude and longitude) and put a marker on the map

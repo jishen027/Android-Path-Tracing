@@ -1,23 +1,34 @@
 package uk.ac.shef.oak.com6510.activities
+import android.annotation.SuppressLint
 import android.app.Activity
 import androidx.appcompat.widget.Toolbar
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import uk.ac.shef.oak.com6510.R
-import uk.ac.shef.oak.com6510.data.RouteData
-import uk.ac.shef.oak.com6510.data.RouteDataDao
 import kotlinx.coroutines.*
+import uk.ac.shef.oak.com6510.adaptors.GalleryAdapter
+import uk.ac.shef.oak.com6510.data.*
+import android.provider.MediaStore
+
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+
 
 class ShowRouteActivity : AppCompatActivity() {
     val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var routeDao: RouteDataDao
+    private lateinit var positionDao: PositionDataDao
+    private lateinit var imageDao: ImageDataDao
     lateinit var route: RouteData
+    lateinit var lastPosition: PositionData
 
     val startForResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
@@ -51,26 +62,50 @@ class ShowRouteActivity : AppCompatActivity() {
         GlobalScope.launch {
             routeDao = (this@ShowRouteActivity.application as TripTracker)
                 .databaseObj.routeDataDao()
+            positionDao = (this@ShowRouteActivity.application as TripTracker)
+                .databaseObj.positionData()
+            imageDao = (this@ShowRouteActivity.application as TripTracker)
+                .databaseObj.imageDataDao()
         }
     }
 
     private fun getRoute(id: Int) = runBlocking {
         GlobalScope.launch {
             route = routeDao.getItem(id)
+            var positions = positionDao.getPositionsOfRoute(route.id)
+            lastPosition = positions.last()
             displayData()
+            loadImage()
+        }
+    }
+
+    private fun loadImage() = runBlocking {
+        GlobalScope.launch {
+            var images = imageDao.getRouteImages(route.id)
+            if(images.isNotEmpty()) {
+                val imageView = findViewById<ImageView>(R.id.route_image)
+                Log.i("image", images[0].imageUri)
+                val bitmap = BitmapFactory.decodeFile(images[0].imageUri).also { bitmap -> imageView.setImageBitmap(bitmap) }
+                imageView.setImageBitmap(bitmap)
+            }
         }
     }
 
     private fun displayData(){
             val titleToolbar = findViewById<Toolbar>(R.id.show_toolbar)
             val descriptionTextView = findViewById<TextView>(R.id.show_route_description)
+            val tempTextView = findViewById<TextView>(R.id.temperature_text)
+            val pressTextView = findViewById<TextView>(R.id.pressure_text)
 
-            titleToolbar.title = route.title
+            titleToolbar.title = "Route: ${route.title}"
             if(route.description.equals("")) {
                 descriptionTextView.text = "<no description>"
             } else {
                 descriptionTextView.text = route.description
             }
+
+            tempTextView.text = "Temperature: ${lastPosition.temperature} ℃"
+            pressTextView.text = "Pressure: ${lastPosition.pressure} (hPa)"
 
             val fabEdit: FloatingActionButton = findViewById(R.id.fab_edit)
             fabEdit.setOnClickListener(View.OnClickListener {

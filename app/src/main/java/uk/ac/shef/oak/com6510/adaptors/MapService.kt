@@ -1,10 +1,14 @@
 package uk.ac.shef.oak.com6510.adaptors
 
 import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.ActivityCompat
@@ -33,16 +37,26 @@ class MapService :Service(){
 
     override fun onCreate() {
         super.onCreate()
+
+        var CHANNEL_ONE_ID = "uk.ac.shef.aok.com6510"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            var notification =  Notification.Builder(applicationContext,CHANNEL_ONE_ID).setChannelId(CHANNEL_ONE_ID).build()
+            startForeground(1, notification)
+        }
         var map = MapsActivity.getMap()
         var activity = MapsActivity.getActivity()
         getLocationPermission()
 
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity!!)
-
-        Log.e(TAG,"onCreate ${map.toString()}")
-        Log.e(TAG,"onCreate ${activity.toString()}")
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
 
 
+        class ykTimer() : TimerTask() {
+            override fun run() {
+                addPolyLine()
+            }
+        }
+        yk = ykTimer()
+        Timer().schedule(yk, Date(), 5000)
     }
 
     override fun onBind(p0: Intent?): IBinder? {
@@ -52,13 +66,6 @@ class MapService :Service(){
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.e(TAG, "onStartCommand ${intent.data}")
-        class ykTimer() : TimerTask() {
-            override fun run() {
-                addPolyLine()
-            }
-        }
-        yk = ykTimer()
-        Timer().schedule(yk, Date(), 5000)
         return startMode
     }
 
@@ -70,8 +77,13 @@ class MapService :Service(){
 
     override fun onDestroy() {
         Log.e(TAG, "onDestroy")
-        cleanMap()
-
+        class ykTimer() : TimerTask() {
+            override fun run() {
+                addPolyLine()
+            }
+        }
+        yk.cancel()
+        yk = ykTimer()
         super.onDestroy()
     }
 
@@ -117,6 +129,8 @@ class MapService :Service(){
 //        }
 //    }
 
+    permission
+
     private fun getLocationPermission(){
         /*
         * Request location permission, so that we can get the location of the
@@ -161,14 +175,12 @@ class MapService :Service(){
                 locationResult?.addOnCompleteListener(MapsActivity.getActivity()!!) { task ->
                     if (task.isSuccessful) {
                         Log.e(TAG, " task is successful")
-                        // Set the map's camera position to the current location of the device.
                         lastKnownLocation = task.result
                         if (lastKnownLocation != null) {
                             Log.e(TAG, "start doing ployline")
                             val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
                             MapsActivity.points.add(markerPosition)
-
-//                            createNewPosition(markerPosition.latitude, markerPosition.longitude)
+                            MapsActivity.createNewPosition(markerPosition.latitude, markerPosition.longitude)
                             val polylineOptions = PolylineOptions().addAll(MapsActivity.points)
                             var polyline =  MapsActivity.getMap()?.addPolyline(polylineOptions)
                             MapsActivity.polylines.add(polyline!!)
