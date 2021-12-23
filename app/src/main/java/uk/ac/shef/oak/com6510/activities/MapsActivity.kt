@@ -33,7 +33,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import uk.ac.shef.oak.com6510.R
 import uk.ac.shef.oak.com6510.adaptors.MapService
 import uk.ac.shef.oak.com6510.data.*
-import uk.ac.shef.oak.com6510.databinding.ActivityMapsBinding
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -45,7 +44,6 @@ import java.util.*
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
-    private lateinit var binding: ActivityMapsBinding
     private lateinit var placesClient: PlacesClient
     private lateinit var startRouteDialog: Dialog
     private lateinit var startRecordBtn: Button;

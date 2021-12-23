@@ -1,8 +1,10 @@
 package uk.ac.shef.oak.com6510.activities
+import android.annotation.SuppressLint
 import android.app.Activity
 import androidx.appcompat.widget.Toolbar
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
@@ -14,10 +16,15 @@ import uk.ac.shef.oak.com6510.R
 import uk.ac.shef.oak.com6510.adaptors.GalleryAdapter
 import uk.ac.shef.oak.com6510.data.ImageDataDao
 import kotlinx.coroutines.*
+import uk.ac.shef.oak.com6510.data.PositionData
+import uk.ac.shef.oak.com6510.data.PositionDataDao
+import uk.ac.shef.oak.com6510.data.RouteDataDao
 
 class ShowImageActivity : AppCompatActivity() {
     val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    lateinit var daoObj: ImageDataDao
+    private lateinit var positionDao: PositionDataDao
+    private lateinit var routeDao: RouteDataDao
+    var position: PositionData? = null
 
     val startForResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
@@ -40,13 +47,54 @@ class ShowImageActivity : AppCompatActivity() {
         val bundle: Bundle? = intent.extras
         var position = -1
 
-        daoObj = (this@ShowImageActivity.application as TripTracker)
-            .databaseObj.imageDataDao()
-
         if (bundle != null) {
             // this is the image position in the itemList
             position = bundle.getInt("position")
+            loadPosition(position)
+            loadRoute(position)
             displayData(position)
+        }
+    }
+
+    private fun loadRoute(position: Int) {
+        GlobalScope.launch {
+            routeDao = (this@ShowImageActivity.application as TripTracker)
+                .databaseObj.routeDataDao()
+            var routeId = GalleryAdapter.items[position].routeId
+            if(routeId != null && routeId > 0) {
+                var route = routeDao.getItem(routeId)
+                val routeNameTextView = findViewById<TextView>(R.id.img_route_name)
+                routeNameTextView.text = "Route: ${route?.title}"
+            }
+
+        }
+    }
+
+    private fun loadPosition(position: Int) {
+        GlobalScope.launch {
+            positionDao = (this@ShowImageActivity.application as TripTracker)
+                .databaseObj.positionData()
+            if(GalleryAdapter.items[position].positionId != null) {
+                var positionId = GalleryAdapter.items[position].positionId
+                this@ShowImageActivity.position = positionId?.let { positionDao.getItem(it) }
+                displayPosition()
+            } else {
+                val posContainer = findViewById<View>(R.id.barometer_container)
+                posContainer.visibility = View.INVISIBLE
+            }
+        }
+    }
+
+    private fun displayPosition() {
+        var classPosition = this@ShowImageActivity.position
+        val tempTextView = findViewById<TextView>(R.id.img_temperature_text)
+        val pressTextView = findViewById<TextView>(R.id.img_pressure_text)
+        if(classPosition?.temperature == null) {
+            val posContainer = findViewById<View>(R.id.barometer_container)
+            posContainer.visibility = View.INVISIBLE
+        } else {
+            tempTextView.text = "Temperature: ${classPosition?.temperature} ℃"
+            pressTextView.text = "Pressure: ${classPosition?.pressure} (hPa)"
         }
     }
 
@@ -55,7 +103,6 @@ class ShowImageActivity : AppCompatActivity() {
             val imageView = findViewById<ImageView>(R.id.show_image)
             val titleToolbar = findViewById<Toolbar>(R.id.show_toolbar)
             val descriptionTextView = findViewById<TextView>(R.id.show_image_description)
-            val imageData = GalleryAdapter.items[position]
 
             imageView.setImageBitmap(GalleryAdapter.items[position].thumbnail!!)
             titleToolbar.title = GalleryAdapter.items[position].imageTitle
