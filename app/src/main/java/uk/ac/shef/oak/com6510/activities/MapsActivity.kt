@@ -33,7 +33,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import uk.ac.shef.oak.com6510.R
 import uk.ac.shef.oak.com6510.adaptors.MapService
 import uk.ac.shef.oak.com6510.data.*
-import uk.ac.shef.oak.com6510.databinding.ActivityMapsBinding
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -45,7 +44,6 @@ import java.util.*
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
-    private lateinit var binding: ActivityMapsBinding
     private lateinit var placesClient: PlacesClient
     private lateinit var startRouteDialog: Dialog
     private lateinit var startRecordBtn: Button;
@@ -541,7 +539,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         getLocationPermission()
 
         // Turn on the My Location layer and the related control on the map.
-        updateLocationUI()
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation()
@@ -581,6 +578,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         */
         if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ){
             locationPermissionGranted = true
+            updateLocationUI()
         }else{
 //            allPermissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
@@ -605,25 +603,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
                     locationPermissionGranted = true
+                    updateLocationUI()
                 }
             }
-
-//            ALL_PERMISSIONS -> {
-//                if(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
-//                    readStoragePermissionGranted = true
-//                    writeStoragePermissionGranted = true
-//                    cameraPermissionGranted = true
-//                }
-//            }
         }
-        updateLocationUI()
     }
 
-    @SuppressLint("MissingPermission")
     private fun updateLocationUI(){
-        if(mMap == null){
-            return
-        }
         try {
             if(locationPermissionGranted){
                 mMap?.isMyLocationEnabled = true

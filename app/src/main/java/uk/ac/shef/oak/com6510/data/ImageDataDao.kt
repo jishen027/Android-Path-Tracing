@@ -22,6 +22,8 @@ interface ImageDataDao {
     @Query("SELECT * from image WHERE title LIKE :searchQuery")
     fun searchDatabase(searchQuery: String): Flow<List<ImageData>>
 
+    @Query("SELECT * from image WHERE routeId = :routeId")
+    fun getRouteImages(routeId: Int): List<ImageData>
     // Specify the conflict strategy as REPLACE,
     // when the trying to add an existing Item
     // into the database.
