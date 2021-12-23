@@ -40,6 +40,7 @@ class MapService :Service(){
 
         var CHANNEL_ONE_ID = "uk.ac.shef.aok.com6510"
         var CHANNEL_ONE_NAME = "channel_name"
+        //android version must greater than 8.0
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationChannel =  NotificationChannel(CHANNEL_ONE_ID, CHANNEL_ONE_NAME, NotificationManager.IMPORTANCE_HIGH)
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -95,7 +96,9 @@ class MapService :Service(){
     }
 
 
-
+    /**
+     * Prompts the user for permission to use the device location.
+     */
     private fun getLocationPermission(){
         /*
         * Request location permission, so that we can get the location of the
@@ -112,6 +115,9 @@ class MapService :Service(){
         }
     }
 
+    /**
+     * Updates the map's UI settings based on whether the user has granted location permission.
+     */
     private fun updateLocationUI(){
         if(MapsActivity.getMap() == null){
             return
@@ -131,6 +137,9 @@ class MapService :Service(){
         }
     }
 
+    /***
+     * get current position and insert the position to the latlng list then draw a ployline on the map in the map service
+     */
     private fun addPolyLine(){
         Log.e(TAG, "add polyLine is running")
         try {
@@ -165,19 +174,6 @@ class MapService :Service(){
         } catch (e: SecurityException) {
             Log.e("Exception: %s", e.message, e)
         }
-    }
-
-
-    private fun cleanMap(){
-        for (marker in MapsActivity.markers){
-            marker.remove()
-        }
-
-        for(polyline in MapsActivity.polylines){
-            polyline.remove()
-        }
-        MapsActivity.markers.removeAll(MapsActivity.markers)
-        MapsActivity.points.removeAll(MapsActivity.points)
     }
 
 
