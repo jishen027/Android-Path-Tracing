@@ -3,6 +3,8 @@ package uk.ac.shef.oak.com6510.activities
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.app.PendingIntent
+import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -19,12 +21,15 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
+import com.google.android.gms.tasks.Task
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
@@ -44,7 +49,7 @@ import java.util.*
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
-    private lateinit var mMap: GoogleMap
+    private var serviceIntent: Intent? = null
     private lateinit var binding: ActivityMapsBinding
     private lateinit var placesClient: PlacesClient
     private lateinit var startRouteDialog: Dialog
@@ -69,10 +74,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var currentPressure: Float = 0f;
     private var currentTemperature: Float = 0f;
 
-    //marker and polyline
-    var points = mutableListOf<LatLng>()
-    var markers = mutableListOf<Marker>()
-    var polylines = mutableListOf<Polyline>()
     private lateinit var newImageDialog: Dialog
 
     //easy image
@@ -94,6 +95,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var allPermissions = mutableListOf<String>()
 
 
+
     companion object {
         private var activity: AppCompatActivity? = null
         fun getActivity(): AppCompatActivity? {
@@ -105,12 +107,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         fun getMap(): GoogleMap? {
-            return mMap
+            return this.mMap
         }
         private lateinit var mMap: GoogleMap
         private val TAG = MapsActivity::class.java.simpleName
         private const val DEFAULT_ZOOM = 15
-        private const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
+        const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
 
         // Keys for storing activity state.
         private const val KEY_CAMERA_POSITION = "camera_position"
@@ -124,28 +126,43 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         private const val REQUEST_WRITE_EXTERNAL_STORAGE = 7829
         private const val REQUEST_CAMERA_CODE = 100
         private const val ALL_PERMISSIONS = 1
+
+        var points = mutableListOf<LatLng>()
+        var markers = mutableListOf<Marker>()
+        var polylines = mutableListOf<Polyline>()
     }
 
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        newImageDialog = Dialog(this)
+
+        // Retrieve location and camera position from saved instance state.
+        if (savedInstanceState != null) {
+            lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
+            cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION)
+        }
+
+        // Retrieve the content view that renders the map.
         setContentView(R.layout.activity_maps)
 
+        // Construct a PlacesClient
         Places.initialize(applicationContext, getString(R.string.google_maps_key))
         placesClient = Places.createClient(this)
 
+        // Construct a FusedLocationProviderClient.
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
-
-        //start map service
-        val intent = Intent(this, MapService::class.java)
-        startService(intent)
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
+
+        setActivity(this)
+
+        newImageDialog = Dialog(this)
+
+
 
 
         // Sensor activities
@@ -169,10 +186,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         )
 
-        if (savedInstanceState != null) {
-            lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION)
-            cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION)
-        }
+
         // Activities for buttons =============================================================
 
         /**
@@ -191,7 +205,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 yk = ykTimer()
                 openStartRouteDialog()
             } else {
-                stopService(intent)
+                serviceIntent = Intent(applicationContext, MapService::class.java)
+                stopService(serviceIntent)
                 this.sensorViewModel?.stopSensing()
                 yk.cancel()
                 yk = ykTimer()
@@ -222,7 +237,172 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         //end of  activities for buttons =============================================================
         initData();
 
+        initEasyImage()
+
     }
+
+
+    /**
+     * Saves the state of the map when the activity is paused.
+     */
+    override fun onSaveInstanceState(outState: Bundle) {
+        mMap?.let { map ->
+            outState.putParcelable(KEY_CAMERA_POSITION, map.cameraPosition)
+            outState.putParcelable(KEY_LOCATION, lastKnownLocation)
+        }
+        super.onSaveInstanceState(outState)
+    }
+
+//    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+//        if (item.itemId == R.id.option_get_place) {
+//            showCurrentPlace()
+//        }
+//        return true
+//    }
+
+
+    /**
+     * Manipulates the map once available.
+     * This callback is triggered when the map is ready to be used.
+     * This is where we can add markers or lines, add listeners or move the camera. In this case,
+     * we just add a marker near Sydney, Australia.
+     * If Google Play services is not installed on the device, the user will be prompted to install
+     * it inside the SupportMapFragment. This method will only be triggered once the user has
+     * installed Google Play services and returned to the app.
+     */
+    override fun onMapReady(googleMap: GoogleMap) {
+        mMap = googleMap
+
+        // Use a custom info window adapter to handle multiple lines of text in th
+        // info window contents.
+        mMap.setInfoWindowAdapter(object : GoogleMap.InfoWindowAdapter {
+            // Return null here, so that getInfoContents() is called next.
+            override fun getInfoWindow(arg0: Marker): View? {
+                return null
+            }
+
+            override fun getInfoContents(marker: Marker): View {
+                // Inflate the layouts for the info window, title and snippet.
+                val infoWindow = layoutInflater.inflate(R.layout.custom_info_contents,
+                    findViewById<FrameLayout>(R.id.map), false)
+                val title = infoWindow.findViewById<TextView>(R.id.title)
+                title.text = marker.title
+                val snippet = infoWindow.findViewById<TextView>(R.id.snippet)
+                snippet.text = marker.snippet
+                return infoWindow
+            }
+        })
+
+        // Prompt the user for permission.
+        getLocationPermission()
+
+        // Turn on the My Location layer and the related control on the map.
+        updateLocationUI()
+
+        // Get the current location of the device and set the position of the map.
+        getDeviceLocation(applicationContext)
+
+    }
+
+
+    /**
+     * Gets the current location of the device, and positions the map's camera.
+     */
+    @SuppressLint("MissingPermission")
+    private fun getDeviceLocation(context: Context){
+        /*
+         * Get the best and most recent location of the device, which may be null in rare
+         * cases when a location is not available.
+         */
+        try {
+            if (locationPermissionGranted) {
+
+                val locationResult = fusedLocationProviderClient.lastLocation
+                locationResult.addOnCompleteListener(this) { task ->
+                    if (task.isSuccessful) {
+                        // Set the map's camera position to the current location of the device.
+                        lastKnownLocation = task.result
+                        if (lastKnownLocation != null) {
+                            mMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(
+                                LatLng(lastKnownLocation!!.latitude,
+                                    lastKnownLocation!!.longitude), DEFAULT_ZOOM.toFloat()))
+                        }
+                    } else {
+                        Log.d(TAG, "Current location is null. Using defaults.")
+                        Log.e(TAG, "Exception: %s", task.exception)
+                        mMap?.moveCamera(CameraUpdateFactory
+                            .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat()))
+                        mMap?.uiSettings?.isMyLocationButtonEnabled = false
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e("Exception: %s", e.message, e)
+        }
+    }
+
+    /**
+     * Prompts the user for permission to use the device location.
+     */
+    private fun getLocationPermission(){
+        /*
+        * Request location permission, so that we can get the location of the
+        * device. The result of the permission request is handled by a callback,
+        * onRequestPermissionsResult.
+        */
+        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ){
+            locationPermissionGranted = true
+        }else{
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
+        }
+    }
+
+
+    /**
+     * Handles the result of the request for location permissions.
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        locationPermissionGranted = false
+        when(requestCode){
+            PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                    locationPermissionGranted = true
+                }
+            }
+        }
+        updateLocationUI()
+    }
+
+    /**
+     * Updates the map's UI settings based on whether the user has granted location permission.
+     */
+    @SuppressLint("MissingPermission")
+    private fun updateLocationUI(){
+        if(mMap == null){
+            return
+        }
+        try {
+            if(locationPermissionGranted){
+                mMap?.isMyLocationEnabled = true
+                mMap?.uiSettings?.isMyLocationButtonEnabled = true
+            }else{
+                mMap?.isMyLocationEnabled = false
+                mMap?.uiSettings?.isMyLocationButtonEnabled = false
+                lastKnownLocation = null
+                getLocationPermission()
+            }
+        }catch (e: SecurityException){
+            Log.e("Exception: %s", e.message, e)
+        }
+    }
+
+
 
     /**
      *initialises EasyImage
@@ -280,10 +460,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         newImageDialog.show()
     }
 
-    private fun insertImage(imageData: ImageData): Int = runBlocking {
-        var insertJob = async { imageDao.insert(imageData) }
-        insertJob.await().toInt()
-    }
 
 
     private fun openStartRouteDialog() {
@@ -295,8 +471,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         val routeDesc = startRouteDialog.findViewById<EditText>(R.id.route_title_desc)
 
         startBtn.setOnClickListener {
-            Timer().schedule(yk, Date(), 5000)
+//            Timer().schedule(yk, Date(), 20000)
             addMarkerPoint()
+            serviceIntent = Intent(applicationContext, MapService::class.java)
+            startService(serviceIntent)
             this.sensorViewModel?.startSensing()
             setAddPhotoVisible()
             startRecordBtn.text = resources.getString(R.string.stop)
@@ -351,6 +529,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         var insertJob = async { positionDao.insert(positionData) }
         insertJob.await().toInt()
     }
+
+    private fun insertImage(imageData: ImageData): Int = runBlocking {
+        var insertJob = async { imageDao.insert(imageData) }
+        insertJob.await().toInt()
+    }
+
     /**
      * addMarkerPoint() will get user's current position(latitude and longitude) and put a marker on the map
      *
@@ -470,6 +654,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     /**
      * user's current position(latitude and longitude) and put a image marker on the map
+     * @param mediaFile image file get from camera
      */
     private fun addImageMarker(mediaFile: MediaFile){
         try {
@@ -502,183 +687,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
-    override fun onMapReady(googleMap: GoogleMap) {
-        mMap = googleMap
-
-        // Use a custom info window adapter to handle multiple lines of text in the
-        // info window contents.
-        this.mMap?.setInfoWindowAdapter(object : GoogleMap.InfoWindowAdapter {
-            // Return null here, so that getInfoContents() is called next.
-            override fun getInfoWindow(arg0: Marker): View? {
-                return null
-            }
-
-            override fun getInfoContents(marker: Marker): View {
-                // Inflate the layouts for the info window, title and snippet.
-                val infoWindow = layoutInflater.inflate(R.layout.custom_info_contents,
-                    findViewById<FrameLayout>(R.id.map), false)
-                val title = infoWindow.findViewById<TextView>(R.id.title)
-                title.text = marker.title
-                val snippet = infoWindow.findViewById<TextView>(R.id.snippet)
-                snippet.text = marker.snippet
-                return infoWindow
-            }
-        })
-
-
-//      getStoragePermission()
-//      getAllPermissions()
-
-        getLocationPermission()
-
-        // Turn on the My Location layer and the related control on the map.
-        updateLocationUI()
-
-        // Get the current location of the device and set the position of the map.
-        getDeviceLocation()
-
-        initEasyImage()
-
-    }
-
-    private fun getStoragePermission(){
-        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
-            readStoragePermissionGranted = true
-        }else{
-            allPermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-
-        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
-            writeStoragePermissionGranted = true
-        }else{
-            allPermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }
-
-        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED){
-            cameraPermissionGranted = true
-        }else{
-            allPermissions.add(Manifest.permission.CAMERA)
-        }
-        if(allPermissions.isNotEmpty()){
-            ActivityCompat.requestPermissions(this, allPermissions.toTypedArray(), ALL_PERMISSIONS)
-        }
-    }
-
-    private fun getLocationPermission(){
-        /*
-        * Request location permission, so that we can get the location of the
-        * device. The result of the permission request is handled by a callback,
-        * onRequestPermissionsResult.
-        */
-        if(ContextCompat.checkSelfPermission(this.applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ){
-            locationPermissionGranted = true
-        }else{
-//            allPermissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
-        }
-    }
-
-//    private fun getAllPermissions(){
-//        if(allPermissions.isNotEmpty()){
-//            ActivityCompat.requestPermissions(this, allPermissions.toTypedArray(), ALL_PERMISSIONS)
-//        }
-//    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        locationPermissionGranted = false
-        when(requestCode){
-            PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
-                    locationPermissionGranted = true
-                }
-            }
-
-//            ALL_PERMISSIONS -> {
-//                if(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
-//                    readStoragePermissionGranted = true
-//                    writeStoragePermissionGranted = true
-//                    cameraPermissionGranted = true
-//                }
-//            }
-        }
-        updateLocationUI()
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun updateLocationUI(){
-        if(mMap == null){
-            return
-        }
-        try {
-            if(locationPermissionGranted){
-                mMap?.isMyLocationEnabled = true
-                mMap?.uiSettings?.isMyLocationButtonEnabled = true
-            }else{
-                mMap?.isMyLocationEnabled = false
-                mMap?.uiSettings?.isMyLocationButtonEnabled = false
-                lastKnownLocation = null
-                getLocationPermission()
-            }
-        }catch (e: SecurityException){
-            Log.e("Exception: %s", e.message, e)
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun getDeviceLocation(){
-        /*
-         * Get the best and most recent location of the device, which may be null in rare
-         * cases when a location is not available.
-         */
-
-        try {
-            if (locationPermissionGranted) {
-                val locationResult = fusedLocationProviderClient.lastLocation
-                locationResult.addOnCompleteListener(this) { task ->
-                    if (task.isSuccessful) {
-                        // Set the map's camera position to the current location of the device.
-                        lastKnownLocation = task.result
-                        if (lastKnownLocation != null) {
-                            mMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                                LatLng(lastKnownLocation!!.latitude,
-                                    lastKnownLocation!!.longitude), DEFAULT_ZOOM.toFloat()))
-                        }
-                    } else {
-                        Log.d(TAG, "Current location is null. Using defaults.")
-                        Log.e(TAG, "Exception: %s", task.exception)
-                        mMap?.moveCamera(CameraUpdateFactory
-                            .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat()))
-                        mMap?.uiSettings?.isMyLocationButtonEnabled = false
-                    }
-                }
-            }
-        } catch (e: SecurityException) {
-            Log.e("Exception: %s", e.message, e)
-        }
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.option_get_place) {
-            showCurrentPlace()
-        }
-        return true
-    }
-
     private fun setAddPhotoVisible() {
         if (findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility == View.VISIBLE) {
             findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility = View.INVISIBLE
@@ -686,112 +694,4 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             findViewById<FloatingActionButton>(R.id.addPhotoFab).visibility = View.VISIBLE
         }
     }
-
-    @SuppressLint("MissingPermission")
-    private fun showCurrentPlace() {
-        if (mMap == null) {
-            return
-        }
-        if (locationPermissionGranted) {
-            // Use fields to define the data types to return.
-            val placeFields = listOf(Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG)
-
-            // Use the builder to create a FindCurrentPlaceRequest.
-            val request = FindCurrentPlaceRequest.newInstance(placeFields)
-
-            // Get the likely places - that is, the businesses and other points of interest that
-            // are the best match for the device's current location.
-            val placeResult = placesClient.findCurrentPlace(request)
-            placeResult.addOnCompleteListener { task ->
-                if (task.isSuccessful && task.result != null) {
-                    val likelyPlaces = task.result
-
-                    // Set the count, handling cases where less than 5 entries are returned.
-                    val count = if (likelyPlaces != null && likelyPlaces.placeLikelihoods.size < M_MAX_ENTRIES) {
-                        likelyPlaces.placeLikelihoods.size
-                    } else {
-                        M_MAX_ENTRIES
-                    }
-                    var i = 0
-                    likelyPlaceNames = arrayOfNulls(count)
-                    likelyPlaceAddresses = arrayOfNulls(count)
-                    likelyPlaceAttributions = arrayOfNulls<List<*>?>(count)
-                    likelyPlaceLatLngs = arrayOfNulls(count)
-                    for (placeLikelihood in likelyPlaces?.placeLikelihoods ?: emptyList()) {
-                        // Build a list of likely places to show the user.
-                        likelyPlaceNames[i] = placeLikelihood.place.name
-                        likelyPlaceAddresses[i] = placeLikelihood.place.address
-                        likelyPlaceAttributions[i] = placeLikelihood.place.attributions
-                        likelyPlaceLatLngs[i] = placeLikelihood.place.latLng
-                        i++
-                        if (i > count - 1) {
-                            break
-                        }
-                    }
-
-                    // Show a dialog offering the user the list of likely places, and add a
-                    // marker at the selected place.
-                    openPlacesDialog()
-                } else {
-                    Log.e(TAG, "Exception: %s", task.exception)
-                }
-            }
-        } else {
-            // The user has not granted permission.
-            Log.i(TAG, "The user did not grant location permission.")
-
-            // Add a default marker, because the user hasn't selected a place.
-            mMap?.addMarker(MarkerOptions()
-                .title(getString(R.string.default_info_title))
-                .position(defaultLocation)
-                .snippet(getString(R.string.default_info_snippet)))
-
-            // Prompt the user for permission.
-            getLocationPermission()
-        }
-    }
-
-    private fun openPlacesDialog() {
-        // Ask the user to choose the place where they are now.
-        val listener = DialogInterface.OnClickListener { dialog, which -> // The "which" argument contains the position of the selected item.
-            val markerLatLng = likelyPlaceLatLngs[which]
-            var markerSnippet = likelyPlaceAddresses[which]
-            if (likelyPlaceAttributions[which] != null) {
-                markerSnippet = """
-                $markerSnippet
-                ${likelyPlaceAttributions[which]}
-                """.trimIndent()
-            }
-
-            if (markerLatLng == null) {
-                return@OnClickListener
-            }
-
-            // Add a marker for the selected place, with an info window
-            // showing information about that place.
-            mMap?.addMarker(MarkerOptions()
-                .title(likelyPlaceNames[which])
-                .position(markerLatLng)
-                .snippet(markerSnippet))
-
-            // Position the map's camera at the location of the marker.
-            mMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng,
-                DEFAULT_ZOOM.toFloat()))
-        }
-
-        // Display the dialog.
-        AlertDialog.Builder(this)
-            .setTitle(R.string.pick_place)
-            .setItems(likelyPlaceNames, listener)
-            .show()
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        mMap?.let { map ->
-            outState.putParcelable(KEY_CAMERA_POSITION, map.cameraPosition)
-            outState.putParcelable(KEY_LOCATION, lastKnownLocation)
-        }
-        super.onSaveInstanceState(outState)
-    }
-
 }
