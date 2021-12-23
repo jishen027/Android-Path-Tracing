@@ -22,7 +22,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.ArrayList
 
-
+/**
+ * Activity for routes screen. Shows a list of routes with their title and description.
+ * There is also a search bar for searching among routes
+ */
 class RoutesActivity : AppCompatActivity() {
     private lateinit var mRecyclerView: RecyclerView
     private lateinit var mAdapter: RecyclerView.Adapter<RecyclerView.ViewHolder>
@@ -45,6 +48,9 @@ class RoutesActivity : AppCompatActivity() {
 
         val searchView : SearchView = findViewById(R.id.routes_search_view)
 
+        /**
+         * set text listener for search view. Filters images based on entered text
+         */
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextChange(newText: String): Boolean {
                 val filteredValue: MutableList<RouteElement> = ArrayList<RouteElement>()
@@ -74,6 +80,9 @@ class RoutesActivity : AppCompatActivity() {
         init()
     }
 
+    /**
+     * for navigation to another screen with passing params
+     */
     val startForResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
             if (result.resultCode == Activity.RESULT_OK) {
@@ -91,6 +100,9 @@ class RoutesActivity : AppCompatActivity() {
             }
         }
 
+    /**
+     * Loads DAO object
+     */
     private fun init() {
         GlobalScope.launch {
             routeDao = (this@RoutesActivity.application as TripTracker)
@@ -100,6 +112,11 @@ class RoutesActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Loads all routes from database and stores it in two local variables
+     * one for keeping all data and the other for search result
+     *
+     */
     private fun loadRoutes() = runBlocking {
         var routes: List<RouteData> = routeDao.getItems()
 
@@ -108,22 +125,5 @@ class RoutesActivity : AppCompatActivity() {
             allRoutes.add(RouteElement(it.title, it.description, it.id))
         }
     }
-
-//    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-//        // Inflate the menu; this adds items to the action bar if it is present.
-//        menuInflater.inflate(R.menu.menu_main, menu)
-//        return true
-//    }
-//
-//    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-//        // Handle action bar item clicks here. The action bar will
-//        // automatically handle clicks on the Home/Up button, so long
-//        // as you specify a parent activity in AndroidManifest.xml.
-//        val id = item.itemId
-//        return if (id == R.id.action_settings) {
-//            true
-//        } else super.onOptionsItemSelected(item)
-//    }
-
 
 }

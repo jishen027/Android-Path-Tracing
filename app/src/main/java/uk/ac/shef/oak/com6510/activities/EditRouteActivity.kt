@@ -13,10 +13,14 @@ import uk.ac.shef.oak.com6510.data.RouteData
 import uk.ac.shef.oak.com6510.data.RouteDataDao
 import kotlinx.coroutines.*
 
+/**
+ *  Activity for editing the title and description of the route
+ *  Route can also be deleted using this screen
+ */
 class EditRouteActivity : AppCompatActivity() {
 
     private lateinit var routeDao: RouteDataDao
-    val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     lateinit var route: RouteData
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,7 +40,10 @@ class EditRouteActivity : AppCompatActivity() {
 
     }
 
-    val startForResult =
+    /**
+     * for navigation to another screen with passing params
+     */
+    private val startForResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
             val position = result.data?.getIntExtra("position", -1)
             val id = result.data?.getIntExtra("id", -1)
@@ -51,6 +58,9 @@ class EditRouteActivity : AppCompatActivity() {
             }
         }
 
+    /**
+     *  Loads DAO object
+     */
     private fun init() {
         GlobalScope.launch {
             routeDao = (this@EditRouteActivity.application as TripTracker)
@@ -58,6 +68,9 @@ class EditRouteActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     *  Loads the editing route
+     */
     private fun getRoute(id: Int) = runBlocking {
         GlobalScope.launch {
             route = routeDao.getItem(id)
@@ -71,6 +84,9 @@ class EditRouteActivity : AppCompatActivity() {
         editRouteDesc.setText(route.description)
     }
 
+    /**
+     * Sets listeners for edit, delete and cancel buttons
+     */
     private fun makeButtonListeners() {
         var id = route.id
         val cancelButton: Button = findViewById(R.id.cancel_button)

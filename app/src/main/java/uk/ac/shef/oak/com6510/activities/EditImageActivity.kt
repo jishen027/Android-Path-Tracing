@@ -13,6 +13,11 @@ import uk.ac.shef.oak.com6510.adaptors.GalleryAdapter
 import uk.ac.shef.oak.com6510.data.ImageDataDao
 import kotlinx.coroutines.*
 
+/**
+ *  Activity for editing the title and description of the image
+ *  Image can also be deleted using this screen
+ */
+
 class EditImageActivity : AppCompatActivity() {
 
     lateinit var daoObj: ImageDataDao
@@ -49,6 +54,9 @@ class EditImageActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Sets listeners for edit, delete and cancel buttons
+     */
     private fun makeButtonListeners(position: Int) {
         var id = GalleryAdapter.items[position].id
         val cancelButton: Button = findViewById(R.id.cancel_button)
