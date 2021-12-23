@@ -63,7 +63,7 @@ class MapService :Service(){
             }
         }
         yk = ykTimer()
-        Timer().schedule(yk, Date(), 5000)
+        Timer().schedule(yk, Date(), 20000)
     }
 
     override fun onBind(p0: Intent?): IBinder? {
