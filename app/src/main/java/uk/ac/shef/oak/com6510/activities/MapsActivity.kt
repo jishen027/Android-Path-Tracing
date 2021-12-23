@@ -14,6 +14,7 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.*
@@ -196,6 +197,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
+        getLocationPermission()
+
         setActivity(this)
 
         newImageDialog = Dialog(this)
@@ -323,6 +326,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 snippet.text = marker.snippet
                 return infoWindow
             }
+
         })
 
         // Prompt the user for permission.
@@ -333,6 +337,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation(applicationContext)
+
 
     }
 
@@ -435,6 +440,123 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
+    /**
+     * Handles a click on the menu option to get a place.
+     * @param item The menu item to handle.
+     * @return Boolean.
+     */
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.option_get_place) {
+            showCurrentPlace()
+        }
+        return true
+    }
+
+    /**
+     * Prompts the user to select the current place from a list of likely places, and shows the
+     * current place on the map - provided the user has granted location permission.
+     */
+    @SuppressLint("MissingPermission")
+    private fun showCurrentPlace() {
+        if (mMap == null) {
+            return
+        }
+        if (locationPermissionGranted) {
+            // Use fields to define the data types to return.
+            val placeFields = listOf(Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG)
+
+            // Use the builder to create a FindCurrentPlaceRequest.
+            val request = FindCurrentPlaceRequest.newInstance(placeFields)
+
+            // Get the likely places - that is, the businesses and other points of interest that
+            // are the best match for the device's current location.
+            val placeResult = placesClient.findCurrentPlace(request)
+            placeResult.addOnCompleteListener { task ->
+                if (task.isSuccessful && task.result != null) {
+                    val likelyPlaces = task.result
+
+                    // Set the count, handling cases where less than 5 entries are returned.
+                    val count = if (likelyPlaces != null && likelyPlaces.placeLikelihoods.size < M_MAX_ENTRIES) {
+                        likelyPlaces.placeLikelihoods.size
+                    } else {
+                        M_MAX_ENTRIES
+                    }
+                    var i = 0
+                    likelyPlaceNames = arrayOfNulls(count)
+                    likelyPlaceAddresses = arrayOfNulls(count)
+                    likelyPlaceAttributions = arrayOfNulls<List<*>?>(count)
+                    likelyPlaceLatLngs = arrayOfNulls(count)
+                    for (placeLikelihood in likelyPlaces?.placeLikelihoods ?: emptyList()) {
+                        // Build a list of likely places to show the user.
+                        likelyPlaceNames[i] = placeLikelihood.place.name
+                        likelyPlaceAddresses[i] = placeLikelihood.place.address
+                        likelyPlaceAttributions[i] = placeLikelihood.place.attributions
+                        likelyPlaceLatLngs[i] = placeLikelihood.place.latLng
+                        i++
+                        if (i > count - 1) {
+                            break
+                        }
+                    }
+
+                    // Show a dialog offering the user the list of likely places, and add a
+                    // marker at the selected place.
+                    openPlacesDialog()
+                } else {
+                    Log.e(TAG, "Exception: %s", task.exception)
+                }
+            }
+        } else {
+            // The user has not granted permission.
+            Log.i(TAG, "The user did not grant location permission.")
+
+            // Add a default marker, because the user hasn't selected a place.
+            mMap?.addMarker(MarkerOptions()
+                .title(getString(R.string.default_info_title))
+                .position(defaultLocation)
+                .snippet(getString(R.string.default_info_snippet)))
+
+            // Prompt the user for permission.
+            getLocationPermission()
+        }
+    }
+
+    /**
+     * Displays a form allowing the user to select a place from a list of likely places.
+     */
+    private fun openPlacesDialog() {
+        // Ask the user to choose the place where they are now.
+        val listener = DialogInterface.OnClickListener { dialog, which -> // The "which" argument contains the position of the selected item.
+            val markerLatLng = likelyPlaceLatLngs[which]
+            var markerSnippet = likelyPlaceAddresses[which]
+            if (likelyPlaceAttributions[which] != null) {
+                markerSnippet = """
+                    $markerSnippet
+                    ${likelyPlaceAttributions[which]}
+                    """.trimIndent()
+            }
+
+            if (markerLatLng == null) {
+                return@OnClickListener
+            }
+
+            // Add a marker for the selected place, with an info window
+            // showing information about that place.
+            mMap?.addMarker(MarkerOptions()
+                .title(likelyPlaceNames[which])
+                .position(markerLatLng)
+                .snippet(markerSnippet))
+
+            // Position the map's camera at the location of the marker.
+            mMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng,
+                DEFAULT_ZOOM.toFloat()))
+        }
+
+        // Display the dialog.
+        AlertDialog.Builder(this)
+            .setTitle(R.string.pick_place)
+            .setItems(likelyPlaceNames, listener)
+            .show()
+    }
 
     /**
      *initialises EasyImage

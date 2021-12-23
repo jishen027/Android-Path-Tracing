@@ -39,16 +39,21 @@ class MapService :Service(){
         super.onCreate()
 
         var CHANNEL_ONE_ID = "uk.ac.shef.aok.com6510"
+        var CHANNEL_ONE_NAME = "channel_name"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationChannel =  NotificationChannel(CHANNEL_ONE_ID, CHANNEL_ONE_NAME, NotificationManager.IMPORTANCE_HIGH)
+            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(notificationChannel)
             var notification =  Notification.Builder(applicationContext,CHANNEL_ONE_ID).setChannelId(CHANNEL_ONE_ID).build()
             startForeground(1, notification)
         }
         var map = MapsActivity.getMap()
         var activity = MapsActivity.getActivity()
+
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(applicationContext)
+
         getLocationPermission()
         updateLocationUI()
-
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
 
 
         class ykTimer() : TimerTask() {
@@ -66,7 +71,8 @@ class MapService :Service(){
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        Log.e(TAG, "onStartCommand ${intent.data}")
+        Log.e(TAG, "onStartCommand ${intent}")
+
         return startMode
     }
 
