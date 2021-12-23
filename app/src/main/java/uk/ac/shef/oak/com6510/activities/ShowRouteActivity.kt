@@ -1,4 +1,5 @@
 package uk.ac.shef.oak.com6510.activities
+import android.R.attr
 import android.annotation.SuppressLint
 import android.app.Activity
 import androidx.appcompat.widget.Toolbar
@@ -20,6 +21,10 @@ import android.provider.MediaStore
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.R.attr.text
+
+
+
 
 
 class ShowRouteActivity : AppCompatActivity() {
@@ -29,6 +34,7 @@ class ShowRouteActivity : AppCompatActivity() {
     private lateinit var imageDao: ImageDataDao
     lateinit var route: RouteData
     lateinit var lastPosition: PositionData
+    private var routeImage: String = ""
 
     val startForResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
@@ -79,14 +85,22 @@ class ShowRouteActivity : AppCompatActivity() {
         }
     }
 
+    private fun setImage() {
+        runOnUiThread(Runnable {
+            if(routeImage != "") {
+                val imageView = findViewById<ImageView>(R.id.route_image)
+                val bitmap = BitmapFactory.decodeFile(routeImage).also { bitmap -> imageView.setImageBitmap(bitmap) }
+                imageView.setImageBitmap(bitmap)
+            }
+        })
+    }
+
     private fun loadImage() = runBlocking {
         GlobalScope.launch {
             var images = imageDao.getRouteImages(route.id)
             if(images.isNotEmpty()) {
-                val imageView = findViewById<ImageView>(R.id.route_image)
-                Log.i("image", images[0].imageUri)
-                val bitmap = BitmapFactory.decodeFile(images[0].imageUri).also { bitmap -> imageView.setImageBitmap(bitmap) }
-                imageView.setImageBitmap(bitmap)
+                routeImage = images[0].imageUri
+                setImage()
             }
         }
     }
