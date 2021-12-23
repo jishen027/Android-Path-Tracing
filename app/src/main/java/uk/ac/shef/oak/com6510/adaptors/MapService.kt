@@ -46,6 +46,7 @@ class MapService :Service(){
         var map = MapsActivity.getMap()
         var activity = MapsActivity.getActivity()
         getLocationPermission()
+        updateLocationUI()
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
 
@@ -87,49 +88,7 @@ class MapService :Service(){
         super.onDestroy()
     }
 
-//
-//
-//    private fun getDeviceLocation(intent: Intent?){
-//        if(LocationResult.hasResult(intent!!)){
-//            val locationResult = LocationResult.extractResult(intent)
-//            for(location in locationResult.locations){
-//                if(location == null) continue
-//
-//                Log.i("this is in service", "current location: $location")
-//                lastKnownLocation = location
-//
-//                if(MapsActivity.getActivity() != null){
-//                    Log.e(TAG, "got ployline")
-//                    MapsActivity.getActivity()?.runOnUiThread(Runnable {
-//                        try {
-//                            if(lastKnownLocation!=null){
-//
-//                                val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-//                                MapsActivity.getMap()?.moveCamera(
-//                                    CameraUpdateFactory.newLatLngZoom(
-//                                        LatLng(lastKnownLocation!!.latitude,
-//                                            lastKnownLocation!!.longitude), DEFAULT_ZOOM.toFloat()))
-//
-//                                MapsActivity.getMap()?.addMarker(
-//                                    MarkerOptions()
-//                                        .position(markerPosition)
-//                                )
-//                            }else{
-//                                Log.e(TAG, "last know location is empty")
-//                            }
-//
-//                        }catch (e: Exception){
-//                            Log.e("MapServices", "error cannot write on map"+e.message)
-//                        }
-//                    })
-//                }else{
-//                    Log.e(TAG, "getActivity is empty")
-//                }
-//            }
-//        }
-//    }
 
-    permission
 
     private fun getLocationPermission(){
         /*
@@ -147,24 +106,24 @@ class MapService :Service(){
         }
     }
 
-//    private fun updateLocationUI(){
-//        if(MapsActivity.getMap() == null){
-//            return
-//        }
-//        try {
-//            if(locationPermissionGranted){
-//                MapsActivity.getMap()?.isMyLocationEnabled = true
-//                MapsActivity.getMap()?.uiSettings?.isMyLocationButtonEnabled = true
-//            }else{
-//                MapsActivity.getMap()?.isMyLocationEnabled = false
-//                MapsActivity.getMap()?.uiSettings?.isMyLocationButtonEnabled = false
-//                lastKnownLocation = null
-//                getLocationPermission()
-//            }
-//        }catch (e: SecurityException){
-//            Log.e("Exception: %s", e.message, e)
-//        }
-//    }
+    private fun updateLocationUI(){
+        if(MapsActivity.getMap() == null){
+            return
+        }
+        try {
+            if(locationPermissionGranted){
+                MapsActivity.getMap()?.isMyLocationEnabled = true
+                MapsActivity.getMap()?.uiSettings?.isMyLocationButtonEnabled = true
+            }else{
+                MapsActivity.getMap()?.isMyLocationEnabled = false
+                MapsActivity.getMap()?.uiSettings?.isMyLocationButtonEnabled = false
+                lastKnownLocation = null
+                getLocationPermission()
+            }
+        }catch (e: SecurityException){
+            Log.e("Exception: %s", e.message, e)
+        }
+    }
 
     private fun addPolyLine(){
         Log.e(TAG, "add polyLine is running")
@@ -201,50 +160,6 @@ class MapService :Service(){
     }
 
 
-
-//    private fun addPolyLine(intent: Intent){
-//
-//        Log.i(TAG, "add polyLine is running:  ${intent.data}")
-//        if(LocationResult.hasResult(intent)){
-//            val locationResult = LocationResult.extractResult(intent)
-//            for(location in locationResult.locations){
-//                if(location == null) continue
-//
-//                Log.i("this is in service", "current location: $location")
-//                lastKnownLocation = location
-//
-//                if(MapsActivity.getActivity() != null){
-//                    MapsActivity.getActivity()?.runOnUiThread(Runnable {
-//                        try {
-//                            if(lastKnownLocation!=null){
-//                                val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-//                                points.add(markerPosition)
-//                                val polylineOptions = PolylineOptions().addAll(points)
-//                                if(MapsActivity.getMap() != null){
-//                                    Log.e(TAG, "google map is not empty")
-//                                    var polyline = MapsActivity.getMap()?.addPolyline(polylineOptions)
-//                                    polylines.add(polyline!!)
-//                                }else{
-//                                    Log.e(TAG, "google map is empty")
-//                                }
-//
-//                            }else{
-//                                Log.e(TAG, "last known location is empty")
-//                            }
-//
-//                        }catch (e: Exception){
-//                            Log.e("MapServices", "error cannot write on map"+e.message)
-//                        }
-//                    })
-//                }else{
-//                    Log.e(TAG, "google activity is empty")
-//                }
-//            }
-//        }else{
-//            Log.e(TAG, "location result is empty")
-//        }
-//    }
-
     private fun cleanMap(){
         for (marker in MapsActivity.markers){
             marker.remove()
@@ -256,8 +171,6 @@ class MapService :Service(){
         MapsActivity.markers.removeAll(MapsActivity.markers)
         MapsActivity.points.removeAll(MapsActivity.points)
     }
-
-
 
 
     companion object {
