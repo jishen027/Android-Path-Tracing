@@ -136,13 +136,15 @@ class MapService :Service(){
                         Log.e(TAG, " task is successful")
                         lastKnownLocation = task.result
                         if (lastKnownLocation != null) {
-                            Log.e(TAG, "start doing ployline")
-                            val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
-                            MapsActivity.points.add(markerPosition)
-                            MapsActivity.createNewPosition(markerPosition.latitude, markerPosition.longitude)
-                            val polylineOptions = PolylineOptions().addAll(MapsActivity.points)
-                            var polyline =  MapsActivity.getMap()?.addPolyline(polylineOptions)
-                            MapsActivity.polylines.add(polyline!!)
+                            MapsActivity.getActivity()?.runOnUiThread(Runnable {
+                                Log.e(TAG, "start doing ployline")
+                                val markerPosition = LatLng(lastKnownLocation!!.latitude, lastKnownLocation!!.longitude)
+                                MapsActivity.points.add(markerPosition)
+                                MapsActivity.createNewPosition(markerPosition.latitude, markerPosition.longitude)
+                                val polylineOptions = PolylineOptions().addAll(MapsActivity.points)
+                                var polyline =  MapsActivity.getMap()?.addPolyline(polylineOptions)
+                                MapsActivity.polylines.add(polyline!!)
+                            })
                         }else{
                             Log.e(TAG, "last known location is empty")
                         }
