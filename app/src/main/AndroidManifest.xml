@@ -33,12 +33,16 @@
         android:theme="@style/Theme.AndroidDevProj">
         <activity
             android:name="uk.ac.shef.oak.com6510.activities.GalleryActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="fullSensor"
             android:exported="true" />
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyAQ4ZDGyQlHdzmY28GwFEG_JxtPFQ59sAU" />
         <activity
             android:name="uk.ac.shef.oak.com6510.activities.MapsActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="fullSensor"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -47,15 +51,21 @@
         </activity>
         <activity
             android:name="uk.ac.shef.oak.com6510.activities.ShowImageActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="fullSensor"
             android:exported="true" />
         <activity
             android:name="uk.ac.shef.oak.com6510.activities.EditImageActivity"
             android:exported="true" />
         <activity
             android:name="uk.ac.shef.oak.com6510.activities.RoutesActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="fullSensor"
             android:exported="true" />
         <activity
             android:name="uk.ac.shef.oak.com6510.activities.ShowRouteActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="fullSensor"
             android:exported="true" />
         <activity
             android:name="uk.ac.shef.oak.com6510.activities.EditRouteActivity"
