@@ -24,9 +24,10 @@ import android.graphics.BitmapFactory
 import android.R.attr.text
 
 
-
-
-
+/**
+ * Activity of showing details of the route, containing title, description, pressure and
+ * temperature of the place of route and an image of that route (if exists)
+ */
 class ShowRouteActivity : AppCompatActivity() {
     val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var routeDao: RouteDataDao
@@ -36,7 +37,10 @@ class ShowRouteActivity : AppCompatActivity() {
     lateinit var lastPosition: PositionData
     private var routeImage: String = ""
 
-    val startForResult =
+    /**
+     * for navigation to another screen with passing params
+     */
+    private val startForResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
             val position = result.data?.getIntExtra("position", -1)
             val id = result.data?.getIntExtra("id", -1)
@@ -64,6 +68,9 @@ class ShowRouteActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * loads DAO objects
+     */
     private fun init() {
         GlobalScope.launch {
             routeDao = (this@ShowRouteActivity.application as TripTracker)
@@ -75,6 +82,9 @@ class ShowRouteActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     *  loads data of the route from database
+     */
     private fun getRoute(id: Int) = runBlocking {
         GlobalScope.launch {
             route = routeDao.getItem(id)
@@ -85,6 +95,9 @@ class ShowRouteActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     *  sets first image of the route as a background
+     */
     private fun setImage() {
         runOnUiThread(Runnable {
             if(routeImage != "") {
@@ -94,6 +107,10 @@ class ShowRouteActivity : AppCompatActivity() {
             }
         })
     }
+
+    /**
+     *  loads image of the route
+     */
 
     private fun loadImage() = runBlocking {
         GlobalScope.launch {
@@ -105,6 +122,9 @@ class ShowRouteActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     *  assigns data of the route to components of the screen
+     */
     private fun displayData(){
             val titleToolbar = findViewById<Toolbar>(R.id.show_toolbar)
             val descriptionTextView = findViewById<TextView>(R.id.show_route_description)

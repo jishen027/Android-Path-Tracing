@@ -9,7 +9,7 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Database access object to access the Inventory database
+ * Database access object to access the Image Data using database
  */
 @Dao
 interface ImageDataDao {

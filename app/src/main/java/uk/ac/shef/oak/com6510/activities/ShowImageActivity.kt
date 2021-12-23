@@ -20,13 +20,21 @@ import uk.ac.shef.oak.com6510.data.PositionData
 import uk.ac.shef.oak.com6510.data.PositionDataDao
 import uk.ac.shef.oak.com6510.data.RouteDataDao
 
+/**
+ * Activity of showing details of the image, containing bigger size image, title, description, route name, pressure and
+ * temperature of the place of that image was taken. If the photo does not belong to a route it does
+ * not show the route name and barometer values
+ */
 class ShowImageActivity : AppCompatActivity() {
     val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var positionDao: PositionDataDao
     private lateinit var routeDao: RouteDataDao
     var position: PositionData? = null
 
-    val startForResult =
+    /**
+     * for navigation to another screen with passing params
+     */
+    private val startForResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
             val position = result.data?.getIntExtra("position", -1)
             val id = result.data?.getIntExtra("id", -1)
@@ -56,6 +64,9 @@ class ShowImageActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Initializes DAO object and loads the details of route from database
+     */
     private fun loadRoute(position: Int) {
         GlobalScope.launch {
             routeDao = (this@ShowImageActivity.application as TripTracker)
@@ -70,6 +81,9 @@ class ShowImageActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Gets associated position to the image from database
+     */
     private fun loadPosition(position: Int) {
         GlobalScope.launch {
             positionDao = (this@ShowImageActivity.application as TripTracker)
@@ -85,6 +99,9 @@ class ShowImageActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Display position detail of the image
+     */
     private fun displayPosition() {
         var classPosition = this@ShowImageActivity.position
         val tempTextView = findViewById<TextView>(R.id.img_temperature_text)
@@ -98,6 +115,9 @@ class ShowImageActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Sets data to UI
+     */
     private fun displayData(position: Int){
         if (position != -1) {
             val imageView = findViewById<ImageView>(R.id.show_image)

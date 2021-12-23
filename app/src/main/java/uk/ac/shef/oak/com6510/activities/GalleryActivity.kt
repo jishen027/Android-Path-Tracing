@@ -35,6 +35,11 @@ import android.graphics.BitmapFactory
 import android.widget.SearchView
 
 
+/**
+ * Activity for Gallery screen. Shows a grid of images with their title.
+ * There is also a search bar for searching among images
+ * User can also add new images from gallery or camera
+ */
 class GalleryActivity : AppCompatActivity() {
     private var allImages: MutableList<ImageData> = ArrayList<ImageData>()
     private var myDataset: MutableList<ImageData> = ArrayList<ImageData>()
@@ -52,6 +57,9 @@ class GalleryActivity : AppCompatActivity() {
 
     }
 
+    /**
+     * for navigation to another screen with passing params
+     */
     val startForResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
             if (result.resultCode == Activity.RESULT_OK) {
@@ -91,6 +99,9 @@ class GalleryActivity : AppCompatActivity() {
 
         val searchView : SearchView = findViewById(R.id.gallery_search_view)
 
+        /**
+         * set text listener for search view. Filters images based on entered text
+         */
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextChange(newText: String): Boolean {
                 val filteredValue: MutableList<ImageData> = ArrayList<ImageData>()
@@ -126,6 +137,9 @@ class GalleryActivity : AppCompatActivity() {
             .build()
     }
 
+    /**
+     * Initializes DAO object
+     */
     private fun initData() {
         GlobalScope.launch {
             daoObj = (this@GalleryActivity.application as TripTracker)
@@ -134,6 +148,10 @@ class GalleryActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Loads all images from database and add them to list of local images
+     * There are two set of images, one for having all images and the other for keeping and showing the result of search
+     */
     private fun loadData() = runBlocking {
         val receivedData = ArrayList<ImageData>()
         receivedData.addAll(daoObj.getItems())
@@ -228,6 +246,9 @@ class GalleryActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Actions when photos are selected from user's phone gallery or camera
+     */
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
@@ -285,6 +306,11 @@ class GalleryActivity : AppCompatActivity() {
             }
         }
     }
+
+    /**
+     * Opens the dialog for setting title and description for new image
+     * If multiple images are selected the dialogs would be popped up after another
+     */
 
     private fun openNewImageDialog(mediaFile: MediaFile, imgIndex: Int) {
         newImageDialog.setContentView(R.layout.new_picture_popup)

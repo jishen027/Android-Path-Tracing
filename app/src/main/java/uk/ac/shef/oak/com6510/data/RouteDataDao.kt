@@ -7,6 +7,9 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 
+/**
+ * Database access object to access the Route Data using database
+ */
 @Dao
 interface RouteDataDao {
     @Query("SELECT * from route ORDER by date DESC")

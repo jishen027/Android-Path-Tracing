@@ -7,6 +7,9 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 
+/**
+ * Database access object to access the Positions Data using database
+ */
 @Dao
 interface PositionDataDao {
     @Query("SELECT * from position ORDER by id ASC")
