@@ -282,8 +282,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
-
-
     /**
      * Saves the state of the map when the activity is paused.
      */
@@ -567,7 +565,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             .build()
     }
 
-
+    /**
+     * initialises data DAO
+     */
     private fun initData() {
         GlobalScope.launch {
             routeDao = (this@MapsActivity.application as TripTracker)

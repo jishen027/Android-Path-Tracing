@@ -17,8 +17,8 @@ import androidx.lifecycle.MutableLiveData
 import java.lang.Exception
 
 class Temperature(context: Context) {
-    private val BAROMETER_READING_FREQ_MICRO_SEC: Int = 30000
-    private var samplingRateInMicroSec: Long = BAROMETER_READING_FREQ_MICRO_SEC.toLong()
+    private val TEMPERATURE_READING_FREQ_MICRO_SEC: Int = 30000
+    private var samplingRateInMicroSec: Long = TEMPERATURE_READING_FREQ_MICRO_SEC.toLong()
     private var samplingRateInNanoSec: Long = samplingRateInMicroSec * 1000
     private var timePhoneWasLastRebooted: Long = 0
     private var lastReportTime: Long = 0
@@ -42,8 +42,8 @@ class Temperature(context: Context) {
         temperatureSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)!!
 
         /**
-         * this inits the listener and establishes the actions to take when a sensor is available
-         * It is not registere to listen at this point, but makes sure the object is available to
+         * this init the listener and establishes the actions to take when a sensor is available
+         * It is not register to listen at this point, but makes sure the object is available to
          * listen when registered.
          */
         temperatureEventListener  = object : SensorEventListener {
