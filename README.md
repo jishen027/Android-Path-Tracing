@@ -1,5 +1,7 @@
 # Software Development for Mobile Devices
 
+## University of Sheffield COM6501
+
 ## Description
 The application is a city-based travel application consisting of an images or photo display of attractions and places of interests around a city (Sheffield, London,  Manchester, etc.) you have visited or been to. You are able to receive and edit relevant information about the images on mobile device and to organise them along geolocated visits.
 
@@ -32,7 +34,7 @@ The app will alow to :
 
 ![main](https://raw.githubusercontent.com/jishen027/Android-Path-Tracing/main/screenshots/1main.png)
 
-2. start trip
+1. start trip
 
 ![startTrip](https://raw.githubusercontent.com/jishen027/Android-Path-Tracing/main/screenshots/2startTracing.png)
 
