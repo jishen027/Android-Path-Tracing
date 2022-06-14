@@ -12,11 +12,20 @@ The app will alow to :
 6.   Showing details of a photo including its location on a map and the details of the path the picture is part of.
 7.   Implementing any additional functionalities (weather forecast pinned upon the map,  search location by photos, rating and recommendations, etc.)
 
+## Feature List
+1. to build an app with a flexible sophisticated layout
+2. to use separation of concerns (using MVVM)
+3. to cope with multimedia data
+4. to store data locally using abstractions of databases (Rooms)
+5. to use the phone’s sensors (GPS, barometric pressure, etc.)
+6. to use background services
+
 ## My Work in this project
 1. Implementing google map in the app
 2. Implementing the visit tracker (background process) and sensor tracking including the interface.
 3. Route tracing functions
 4. Show pitures on the map
+
 
 ## Application Screenshots
 1. main
@@ -43,13 +52,7 @@ The app will alow to :
 
 ![tripList](https://raw.githubusercontent.com/jishen027/Android-Path-Tracing/main/screenshots/6triplist.png)
 
-## Feature List
-1. to build an app with a flexible sophisticated layout
-2. to use separation of concerns (using MVVM)
-3. to cope with multimedia data
-4. to store data locally using abstractions of databases (Rooms)
-5. to use the phone’s sensors (GPS, barometric pressure, etc.)
-6. to use background services
+
 
 
 
