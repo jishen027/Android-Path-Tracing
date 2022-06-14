@@ -1,7 +1,7 @@
 # Software Development for Mobile Devices
 
 ## Description
-The application is a city-based travel application consisting of an images or  photo display of attractions and places of interests around a city (Sheffield, London,  Manchester, etc.) you have visited or been to. You are able to receive and edit relevant  information about the images on mobile device and to organise them along geolocated visits.
+The application is a city-based travel application consisting of an images or photo display of attractions and places of interests around a city (Sheffield, London,  Manchester, etc.) you have visited or been to. You are able to receive and edit relevant information about the images on mobile device and to organise them along geolocated visits.
 
 The app will alow to :
 1. Map integration and Taking photos: Taking pictures and allowing pictures to be uploaded to the map.
@@ -19,7 +19,29 @@ The app will alow to :
 4. Show pitures on the map
 
 ## Application Screenshots
+1. main
 
+![main](https://raw.githubusercontent.com/jishen027/Android-Path-Tracing/main/screenshots/1main.png)
+
+2. start trip
+
+![startTrip](https://raw.githubusercontent.com/jishen027/Android-Path-Tracing/main/screenshots/2startTracing.png)
+
+3. add photo druning the trip
+
+![addphoto](https://raw.githubusercontent.com/jishen027/Android-Path-Tracing/main/screenshots/3addPhoto.png)
+
+4. trip tracing
+
+![triptracing](https://raw.githubusercontent.com/jishen027/Android-Path-Tracing/main/screenshots/4tracing.png)
+
+5. end of trip 
+
+![endTrip](https://raw.githubusercontent.com/jishen027/Android-Path-Tracing/main/screenshots/5endtracing.png)
+
+6. trip list
+
+![tripList](https://raw.githubusercontent.com/jishen027/Android-Path-Tracing/main/screenshots/6triplist.png)
 
 ## Feature List
 1. to build an app with a flexible sophisticated layout
