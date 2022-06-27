@@ -22,13 +22,6 @@ The app will alow to :
 5. to use the phone’s sensors (GPS, barometric pressure, etc.)
 6. to use background services
 
-## My Work in this project
-1. Implementing google map in the app
-2. Implementing the visit tracker (background process) and sensor tracking including the interface.
-3. Route tracing functions
-4. Show pitures on the map
-
-
 ## Application Screenshots
 1. main
 
